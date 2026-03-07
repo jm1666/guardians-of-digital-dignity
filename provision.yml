@@ -154,6 +154,12 @@
           hostname-mode=none
       notify: Restart NetworkManager
 
+    - name: Configure Dnscrypt-Proxy Socket - Create drop-in directory
+      file:
+        path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
+        state: directory
+        mode: '0755'
+
     - name: Configure Dnscrypt-Proxy Socket (127.0.0.1:8053)
       copy:
         dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
