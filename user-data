@@ -15,7 +15,7 @@ write_files:
     content: |
       #!/bin/bash
       echo "--- FORTRESS STATUS REPORT ---"
-      if [ -f /home/fortress_admin/FORTRESS_RECOVERY.txt ]; then
+      if [ -f /home/fortress/FORTRESS_RECOVERY.txt ]; then
           echo "[!] RECOVERY SECRETS FOUND. SECURE THEM AND DELETE THE FILE."
           cat /home/fortress_admin/FORTRESS_RECOVERY.txt
       fi
