@@ -238,6 +238,7 @@
         zone: nm-shared
         service: "{{ item }}"
         permanent: true
+        immediate: true
         state: enabled
       loop:
         - dns
@@ -291,7 +292,6 @@
       ansible.builtin.apt:
         name: sqlite3
         state: present
-        update_cache: yes
 
     - name: Add blocklists to Pi-hole
       ansible.builtin.shell:
@@ -317,10 +317,11 @@
         permanent: true
         immediate: true
         state: enabled
+        # Force a list of one dictionary per iteration
         port_forward:
-          port: 53
-          proto: "{{ item.1 }}"
-          toport: 53
+          - port: 53
+            proto: "{{ item.1 }}"
+            toport: 53
       with_nested:
         - ['nm-shared']
         - ['udp', 'tcp']
