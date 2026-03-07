@@ -8,6 +8,8 @@ if [ -f /home/fortress/FORTRESS_RECOVERY.txt ]; then
     echo -e "\e[33mSecure credentials and 'shred -u ~/FORTRESS_RECOVERY.txt' immediately.\e[0m"
 fi
 
+MODE=$(cat /var/lib/guardian_mode 2>/dev/null || echo "UNKNOWN")
+
 # 2. THE SITREP (TACTICAL VIEW)
 echo -e "\n\e[1;34m--- [ FORTRESS SITREP ] ---\e[0m"
 echo -e "UPTIME:    $(uptime -p)"
@@ -25,4 +27,5 @@ echo -e "TAILSCALE:     $(tailscale status --peers=false 2>/dev/null | head -n1 
 
 echo -e "\n\e[1;32m[ SECURITY ]\e[0m"
 echo -e "ETH0 ZONE:     $(firewall-cmd --get-active-zones | grep -B1 eth0 | head -n1 || echo 'UNASSIGNED')"
+echo -e "OPS MODE:      $MODE"
 echo -e "\e[1;34m---------------------------\e[0m\n"
