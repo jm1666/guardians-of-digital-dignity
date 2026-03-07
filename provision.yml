@@ -294,13 +294,37 @@
         state: enabled
       loop: ['nm-shared']
 
-    # 5. TAILSCALE
     - name: Install Tailscale via script
       ansible.builtin.shell:
         cmd: curl -fsSL https://tailscale.com | sh
         # This 'executable' argument is the key fix
         executable: /bin/bash
         creates: /usr/bin/tailscale
+
+    - name: Apply Fortress Kernel Hardening
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/99-fortress.conf
+        reload: yes
+      loop:
+        # 1. THE ENGINE: Enable Routing for NAT/Masquerading
+        - { name: 'net.ipv4.ip_forward', value: '1' }
+        - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
+
+        # 2. STEALTH: Ignore all ICMP (No Ping / Black Hole)
+        - { name: 'net.ipv4.icmp_echo_ignore_all', value: '1' }
+        - { name: 'net.ipv6.icmp.echo_ignore_all', value: '1' }
+
+        # 3. SECURITY: Disable Redirects (Prevent Man-in-the-Middle)
+        - { name: 'net.ipv4.conf.all.accept_redirects', value: '0' }
+        - { name: 'net.ipv4.conf.all.send_redirects', value: '0' }
+        - { name: 'net.ipv6.conf.all.accept_redirects', value: '0' }
+
+        # 4. SPOOFING: Enable Source Validation (Reverse Path Filtering)
+        - { name: 'net.ipv4.conf.all.rp_filter', value: '1' }
+        - { name: 'net.ipv4.conf.default.rp_filter', value: '1' }
 
   handlers:
     - name: Reload Systemd
