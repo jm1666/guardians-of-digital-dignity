@@ -47,8 +47,9 @@
 
     - name: Update SITREP with new identity
       ansible.builtin.debug:
-        msg: "Fortress has been renamed to {{ new_fortress_name }}. Reboot may be required for full effect."
+        msg: "Fortress has been renamed to {{ new_fortress_name }}. Reboot required for full effect."
       when: hostname_changed.changed
+      notify: Reboot Required
 
     - name: Enable I2C and DS3231 RTC
       ansible.builtin.lineinfile:
@@ -64,8 +65,6 @@
         path: /boot/firmware/config.txt
         line: "dtoverlay=pwm-gpio-fan,fan_gpio=18,fan_temp0=45000,fan_temp0_hyst=5000"
         state: present
-      # Note: For true PWM (variable speed) use:
-      # 
       notify: Reboot Required
 
     - name: Install basic dependencies
@@ -494,4 +493,7 @@
       ansible.builtin.service:
         name: systemd-resolved
         state: restarted
-      # Pi-hole runs last so it can verify its upstreams (dnscrypt) are live.
+
+    - name: Reboot Required
+      ansible.builtin.set_fact:
+        needs_reboot: true
