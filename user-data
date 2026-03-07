@@ -7,6 +7,19 @@ users:
     ssh_authorized_keys:
       - YOUR_SSH_PUBLIC_KEY_HERE
 
+manage_resolv_conf: false
+timezone: #TODO
+keyboard:
+  model: pc105
+  layout: "us"
+enable_ssh: true
+ssh_pwauth: false
+
+rpi:
+  interfaces:
+    serial: true
+    i2c: true
+
 # 1. THE GUARDIAN (Written immediately)
 write_files:
   - path: /usr/local/bin/post-install.sh
@@ -36,3 +49,6 @@ ansible:
 
 runcmd:
   - [ /usr/local/bin/post-install.sh ]
+  - [ rfkill, unblock, wifi ]
+  - [ sh, -c, "for f in /var/lib/systemd/rfkill/*:wlan; do echo 0 > \"$f\"; done" ]
+
