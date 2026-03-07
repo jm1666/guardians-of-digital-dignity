@@ -85,7 +85,6 @@
         permanent: true
         immediate: true
       loop:
-        - { iface: 'wlan0', zone: 'nm-shared' }
         - { iface: 'wlan1', zone: 'public' }
         - { iface: 'eth0', zone: 'trusted' }
 
@@ -214,6 +213,17 @@
         group: root
         mode: '0644'
       notify: Restart Resolved
+
+    # 3. NETWORK: Zones & NAT
+    - name: Configure Firewalld (wlan0 for user side)
+      ansible.posix.firewalld:
+        interface: "{{ item.iface }}"
+        zone: "{{ item.zone }}"
+        state: enabled
+        permanent: true
+        immediate: true
+      loop:
+        - { iface: 'wlan0', zone: 'nm-shared' }
 
     - name: Open Ports for Pi-hole
       ansible.posix.firewalld:
