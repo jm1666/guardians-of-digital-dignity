@@ -1,0 +1,43 @@
+---
+- name: Seal the Mobile Fortress
+  hosts: localhost
+  connection: local
+  become: true
+
+  tasks:
+    - name: Ensure Tailscale is active before locking eth0
+      ansible.builtin.command: tailscale status --peers=false
+      register: ts_status
+      changed_when: false
+      failed_when: ts_status.rc != 0
+      # If this fails, the playbook stops here to prevent a lockout.
+
+    - name: Move eth0 from Trusted to Public (DROP) Zone
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=public --add-interface=eth0
+        firewall-cmd --permanent --zone=trusted --remove-interface=eth0
+      notify: Reload Firewalld
+
+    - name: Securely shred the Recovery Secrets file
+      ansible.builtin.shell:
+        cmd: shred -u /home/fortress_admin/FORTRESS_RECOVERY.txt
+      register: shred_result
+      failed_when: false # Don't crash if it was already deleted
+
+    - name: Disable SSH Password Authentication
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+      notify: Restart SSH
+
+  handlers:
+    - name: Reload Firewalld
+      ansible.builtin.shell: |
+        firewall-cmd --runtime-to-permanent
+        firewall-cmd --reload
+
+    - name: Restart SSH
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
