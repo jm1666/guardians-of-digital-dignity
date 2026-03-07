@@ -44,7 +44,7 @@ ansible:
   install_method: distro
   package_name: ansible
   pull:
-    url: "git@github.com:jm1666/guardians-of-market.git"
+    url: "https://github.com/jm1666/guardians-of-digital-dignity.git"
     playbook_name: "provision.yml"
 
 runcmd:
