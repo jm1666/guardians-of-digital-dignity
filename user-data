@@ -21,6 +21,9 @@ rpi:
     serial: true
     i2c: true
 
+packages:
+  - git
+
 ansible:
   install_method: distro
   package_name: ansible
