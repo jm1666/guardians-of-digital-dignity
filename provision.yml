@@ -177,7 +177,7 @@
     - name: Configure Dnscrypt-Proxy
       ansible.builtin.template:
         src: files/dnscrypt-proxy.toml
-        dest: /etc/pihole/dnscrypt-proxy.toml
+        dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
         owner: root
         group: root
         mode: '0644'
@@ -253,7 +253,7 @@
     - name: Create pihole user
       ansible.builtin.user:
         name: pihole
-        home: "/home/pihole"
+        home: "/opt/pihole"
         shell: "/usr/sbin/nologin"
         comment: "PiHole"
         group: pihole
