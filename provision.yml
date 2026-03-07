@@ -465,7 +465,7 @@
         dest: /usr/local/bin/fortress-toggle
         owner: root
         group: root
-        mode: '0644'
+        mode: '0755'
 
   handlers:
     - name: Reload Systemd
