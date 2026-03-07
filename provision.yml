@@ -328,7 +328,7 @@
 
     - name: Add Tailscale GPG key
       ansible.builtin.get_url:
-        url: "https://tailscale.com{{ debian_codename }}.noarmor.gpg"
+        url: "https://pkgs.tailscale.com/stable/debian/{{ debian_codename }}.noarmor.gpg"
         dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
         mode: '0644'
 
