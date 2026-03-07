@@ -226,8 +226,8 @@
 
     - name: Neutralize systemd-resolved stub listener
       ansible.builtin.template:
-          src: files/fortress-no-stub.conf
-          dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
+        src: files/fortress-no-stub.conf
+        dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
         owner: root
         group: root
         mode: '0644'
