@@ -5,14 +5,13 @@
   become: true
 
   tasks:
-    # 1. SECRET GENERATION
     - name: Generate unique secrets
       ansible.builtin.set_fact:
         gen_wifi_psk: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') }}"
         gen_pihole_pw: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
         gen_ssid: "Fortress-{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
 
-    - name: Install Firewalld safely via Ansible
+    - name: Install Firewalld
       ansible.builtin.apt:
         name: firewalld
         state: present
@@ -183,19 +182,18 @@
           nmcli connection up Fortress-AP
       when: nm_config_file.changed
 
-    - name: Install Networking Stack
+    - name: Install DNScrypt-Proxy
       ansible.builtin.apt:
         name: dnscrypt-proxy
         state: present
-        update_cache: yes
     
-    - name: Configure Dnscrypt-Proxy Socket - Create drop-in directory
+    - name: Configure DNScrypt-Proxy Socket - Create drop-in directory
       ansible.builtin.file:
         path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
         state: directory
         mode: '0755'
 
-    - name: Configure Dnscrypt-Proxy Socket (127.0.0.1:8053)
+    - name: Configure Dnscrypt-Proxy Socket via Drop-Ins
       ansible.builtin.copy:
         dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
         content: |
@@ -208,32 +206,30 @@
         - Reload Systemd
         - Restart Dnscrypt Socket
         - Restart Dnscrypt Service
-    
-    - name: Deploy Global Stealth NM Configuration
-      ansible.builtin.copy:
-        dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
+
+    - name: Configure Dnscrypt-Proxy
+      ansible.builtin.template:
+        src: files/dnscrypt-proxy.toml
+        dest: /etc/pihole/dnscrypt-proxy.toml
         owner: root
         group: root
         mode: '0644'
-        content: |
-          [device-mac-randomization]
-          wifi.scan.rand-mac-address=yes
-      
-          [connection-mac-randomization]
-          ethernet.cloned-mac-address=random
-          wifi.cloned-mac-address=random
-          ipv4.dhcp-client-id=mac
-          ipv6.dhcp-duid-type=ll
-      
-          [main]
-          hostname-mode=none
+      notify: 
+        - Restart Dnscrypt Service
+    
+    - name: Deploy Global Stealth NM Configuration
+      ansible.builtin.template:
+        src: files/99-fortress-stealth.conf
+        dest: /etc/pihole/99-fortress-stealth.conf
+        owner: root
+        group: root
+        mode: '0644'
       notify: Restart NetworkManager
 
     - name: Install systemd-resolved via Ansible
       ansible.builtin.apt:
         name: systemd-resolved
         state: present
-        update_cache: yes
 
     - name: Check if resolv.conf is already locked
       ansible.builtin.shell:
@@ -262,18 +258,15 @@
         mode: "0775"
 
     - name: Neutralize systemd-resolved stub listener
-      ansible.builtin.copy:
-        dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
+      ansible.builtin.template:
+          src: files/fortress-no-stub.conf
+          dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
         owner: root
         group: root
         mode: '0644'
-        # Create directory if it doesn't exist
-        content: |
-          [Resolve]
-          DNSStubListener=no
       notify: Restart Resolved
 
-    - name: Open Ports for Pi-hole v6 (DNS/DHCP/Web)
+    - name: Open Ports for Pi-hole
       ansible.posix.firewalld:
         zone: nm-shared
         service: "{{ item }}"
@@ -306,7 +299,7 @@
         group: pihole
         mode: "0775"
 
-    - name: Deploy Pi-hole v6.0 Unified Config (TOML)
+    - name: Deploy Pi-hole Config
       ansible.builtin.template:
         src: files/pihole.toml
         dest: /etc/pihole/pihole.toml
@@ -314,7 +307,7 @@
         group: pihole
         mode: '0644'
   
-    - name: Run Pi-hole v6 unattended installer
+    - name: Run Pi-hole unattended installer
       ansible.builtin.shell:
         cmd: curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
         creates: /etc/systemd/system/pihole-FTL.service
@@ -324,7 +317,13 @@
       ansible.builtin.shell:
         cmd: "pihole setpassword {{ gen_pihole_pw }}"
 
-    - name: Programmatically add blocklists to Pi-hole v6
+    - name: Install SQLite3
+      ansible.builtin.apt:
+        name: sqlite3
+        state: present
+        update_cache: yes
+
+    - name: Add blocklists to Pi-hole
       ansible.builtin.shell:
         cmd: |
           sqlite3 /etc/pihole/gravity.db "INSERT OR IGNORE INTO adlist (address, enabled, comment) VALUES ('{{ item.url }}', 1, '{{ item.comment }}');"
@@ -341,7 +340,7 @@
       ansible.builtin.command: pihole -g
       when: adlist_added.changed
 
-    - name: Hijack Port 53 (DNS Redirect)
+    - name: Intercept Port 53 (DNS Redirect)
       ansible.posix.firewalld:
         zone: "{{ item }}"
         rich_rule: |
@@ -384,43 +383,13 @@
         - { name: 'net.ipv4.conf.default.rp_filter', value: '1' }
         
     # --- TACTICAL LOGON: WARNING + SITREP ---
-    - name: Deploy Unified Fortress Login
-      ansible.builtin.copy:
+    - name: Deploy System Report on Login
+      ansible.builtin.template:
+        src: files/z99-fortress-sitrep.sh
         dest: /etc/profile.d/z99-fortress-sitrep.sh
         owner: root
         group: root
         mode: '0644'
-        content: |
-          #!/bin/bash
-          # Only run for interactive shells
-          [[ $- != *i* ]] && return
-
-          # 1. THE RECOVERY WARNING
-          if [ -f /home/fortress/FORTRESS_RECOVERY.txt ]; then
-              echo -e "\n\e[1;31m[!] SECURITY ALERT: RECOVERY SECRETS DETECTED ON DISK\e[0m"
-              echo -e "\e[33mSecure credentials and 'shred -u ~/FORTRESS_RECOVERY.txt' immediately.\e[0m"
-          fi
-
-          # 2. THE SITREP (TACTICAL VIEW)
-          echo -e "\n\e[1;34m--- [ FORTRESS SITREP ] ---\e[0m"
-          echo -e "UPTIME:    $(uptime -p)"
-          echo -e "TEMP:      $(vcgencmd measure_temp | cut -d= -f2)"
-          
-          echo -e "\n\e[1;32m[ NETWORKING ]\e[0m"
-          echo -e "wlan0 (LOCAL): $(nmcli -t -f IP4.ADDRESS dev show wlan0 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan0/address 2>/dev/null)]"
-          echo -e "wlan1 (SCOUT): $(nmcli -t -f IP4.ADDRESS dev show wlan1 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan1/address 2>/dev/null)]"
-          echo -e "eth0 (SCOUT):  $(nmcli -t -f IP4.ADDRESS dev show eth0 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan1/address 2>/dev/null)]"
-          
-          echo -e "\n\e[1;32m[ PRIVACY ]\e[0m"
-          echo -e "PI-HOLE v6:    $(systemctl is-active pihole-FTL)"
-          echo -e "DNSCRYPT:      $(systemctl is-active dnscrypt-proxy)"
-          echo -e "TAILSCALE:     $(tailscale status --peers=false 2>/dev/null | head -n1 || echo 'OFFLINE')"
-          
-          echo -e "\n\e[1;32m[ SECURITY ]\e[0m"
-          echo -e "ETH0 ZONE:     $(firewall-cmd --get-active-zones | grep -B1 eth0 | head -n1 || echo 'UNASSIGNED')"
-          echo -e "PUBLIC ZONE:   $(firewall-cmd --zone=public --get-target)"
-          echo -e "\e[1;34m---------------------------\e[0m\n"
-
 
   handlers:
     - name: Reload Systemd
