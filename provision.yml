@@ -50,6 +50,24 @@
         msg: "Fortress has been renamed to {{ new_fortress_name }}. Reboot may be required for full effect."
       when: hostname_changed.changed
 
+    - name: Enable I2C and DS3231 RTC
+      ansible.builtin.lineinfile:
+        path: /boot/firmware/config.txt
+        line: "{{ item }}"
+        state: present
+      loop:
+        - "dtparam=i2c_arm=on"
+        - "dtoverlay=i2c-rtc,ds3231"
+
+    - name: Configure PWM Fan
+      ansible.builtin.lineinfile:
+        path: /boot/firmware/config.txt
+        line: "dtoverlay=pwm-gpio-fan,fan_gpio=18,fan_temp0=45000,fan_temp0_hyst=5000"
+        state: present
+      # Note: For true PWM (variable speed) use:
+      # 
+      notify: Reboot Required
+
     - name: Install basic dependencies
       ansible.builtin.apt:
         name:
