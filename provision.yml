@@ -5,6 +5,18 @@
   become: true
 
   tasks:
+    - name: Install Firewalld safely via Ansible
+      ansible.builtin.apt:
+        name: firewalld
+        state: present
+        update_cache: yes
+
+    - name: Ensure Firewalld is started and enabled
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: yes
+
     # 1. SECRET GENERATION (Random 16-char strings)
     - name: Generate unique secrets
       set_fact:
