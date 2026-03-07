@@ -1,0 +1,32 @@
+#cloud-config
+users:
+  - name: fortress
+    groups: [sudo, video, input]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - YOUR_SSH_PUBLIC_KEY_HERE
+
+# 1. THE GUARDIAN (Written immediately)
+write_files:
+  - path: /usr/local/bin/post-install.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      echo "--- FORTRESS STATUS REPORT ---"
+      if [ -f /home/fortress_admin/FORTRESS_RECOVERY.txt ]; then
+          echo "[!] RECOVERY SECRETS FOUND. SECURE THEM AND DELETE THE FILE."
+          cat /home/fortress_admin/FORTRESS_RECOVERY.txt
+      fi
+
+# 2. NATIVE ANSIBLE TRIGGER (Zero-Interaction)
+ansible:
+  install_method: distro
+  package_name: ansible
+  pull:
+    url: "git@github.com:jm1666/guardians-of-market.git"
+    playbook_name: "provision.yml"
+
+runcmd:
+  - [ /usr/local/bin/post-install.sh ]
