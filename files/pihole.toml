@@ -1413,7 +1413,7 @@
   #
   # Allowed values are:
   #     true or false
-  readOnly = true
+  readOnly = false
 
   # Should FTL normalize reported CPU usage?
   #
