@@ -5,6 +5,13 @@
   become: true
 
   tasks:
+    # 1. SECRET GENERATION
+    - name: Generate unique secrets
+      ansible.builtin.set_fact:
+        gen_wifi_psk: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') }}"
+        gen_pihole_pw: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
+        gen_ssid: "Fortress-{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
+
     - name: Install Firewalld safely via Ansible
       ansible.builtin.apt:
         name: firewalld
@@ -17,12 +24,44 @@
         state: started
         enabled: yes
 
-    # 1. SECRET GENERATION
-    - name: Generate unique secrets
-      ansible.builtin.set_fact:
-        gen_wifi_psk: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') }}"
-        gen_pihole_pw: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
-        gen_ssid: "Fortress-{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
+    # --- GUI: OPENBOX + TINT2 + XRDP ---
+    - name: Install Minimal GUI Stack
+      ansible.builtin.apt:
+        name: [xrdp, xorgxrdp, openbox, tint2, xterm]
+        state: present
+
+    - name: Configure XRDP to start Openbox
+      ansible.builtin.copy:
+        dest: /home/fortress/.xsession
+        owner: fortress
+        group: fortress
+        mode: '0644'
+        content: "exec openbox-session"
+
+    - name: Ensure XRDP service is running
+      ansible.builtin.service:
+        name: xrdp
+        state: started
+        enabled: yes
+
+   - name: Create Openbox config directory
+      ansible.builtin.file:
+        path: /home/fortress_admin/.config/openbox
+        state: directory
+        owner: fortress_admin
+        group: fortress_admin
+
+    - name: Configure Openbox Autostart (Launch tint2)
+      ansible.builtin.copy:
+        dest: /home/fortress_admin/.config/openbox/autostart
+        owner: fortress_admin
+        group: fortress_admin
+        mode: '0755'
+        content: |
+          # Start the tint2 panel in the background
+          tint2 &
+          # Optional: disable screen blanking for your monitoring dashboard
+          xset s off && xset -dpms &
 
     # 2. SAVE SECRETS TO RECOVERY FILE
     - name: Create Recovery File for Admin
@@ -325,6 +364,45 @@
         # 4. SPOOFING: Enable Source Validation (Reverse Path Filtering)
         - { name: 'net.ipv4.conf.all.rp_filter', value: '1' }
         - { name: 'net.ipv4.conf.default.rp_filter', value: '1' }
+        
+    # --- TACTICAL LOGON: WARNING + SITREP ---
+    - name: Deploy Unified Fortress Login
+      ansible.builtin.copy:
+        dest: /etc/profile.d/z99-fortress-sitrep.sh
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          #!/bin/bash
+          # Only run for interactive shells
+          [[ $- != *i* ]] && return
+
+          # 1. THE RECOVERY WARNING
+          if [ -f /home/fortress/FORTRESS_RECOVERY.txt ]; then
+              echo -e "\n\e[1;31m[!] SECURITY ALERT: RECOVERY SECRETS DETECTED ON DISK\e[0m"
+              echo -e "\e[33mSecure credentials and 'shred -u ~/FORTRESS_RECOVERY.txt' immediately.\e[0m"
+          fi
+
+          # 2. THE SITREP (TACTICAL VIEW)
+          echo -e "\n\e[1;34m--- [ FORTRESS SITREP ] ---\e[0m"
+          echo -e "UPTIME:    $(uptime -p)"
+          echo -e "TEMP:      $(vcgencmd measure_temp | cut -d= -f2)"
+          
+          echo -e "\n\e[1;32m[ NETWORKING ]\e[0m"
+          echo -e "wlan0 (LOCAL): $(nmcli -t -f IP4.ADDRESS dev show wlan0 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan0/address 2>/dev/null)]"
+          echo -e "wlan1 (SCOUT): $(nmcli -t -f IP4.ADDRESS dev show wlan1 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan1/address 2>/dev/null)]"
+          echo -e "eth0 (SCOUT):  $(nmcli -t -f IP4.ADDRESS dev show eth0 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan1/address 2>/dev/null)]"
+          
+          echo -e "\n\e[1;32m[ PRIVACY ]\e[0m"
+          echo -e "PI-HOLE v6:    $(systemctl is-active pihole-FTL)"
+          echo -e "DNSCRYPT:      $(systemctl is-active dnscrypt-proxy)"
+          echo -e "TAILSCALE:     $(tailscale status --peers=false 2>/dev/null | head -n1 || echo 'OFFLINE')"
+          
+          echo -e "\n\e[1;32m[ SECURITY ]\e[0m"
+          echo -e "ETH0 ZONE:     $(firewall-cmd --get-active-zones | grep -B1 eth0 | head -n1 || echo 'UNASSIGNED')"
+          echo -e "PUBLIC ZONE:   $(firewall-cmd --zone=public --get-target)"
+          echo -e "\e[1;34m---------------------------\e[0m\n"
+
 
   handlers:
     - name: Reload Systemd
