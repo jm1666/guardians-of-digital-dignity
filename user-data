@@ -17,8 +17,14 @@ write_files:
       echo "--- FORTRESS STATUS REPORT ---"
       if [ -f /home/fortress/FORTRESS_RECOVERY.txt ]; then
           echo "[!] RECOVERY SECRETS FOUND. SECURE THEM AND DELETE THE FILE."
-          cat /home/fortress_admin/FORTRESS_RECOVERY.txt
+          cat /home/fortress/FORTRESS_RECOVERY.txt
       fi
+
+packages:
+  - git
+  - ansible
+  - firewalld
+  - network-manager
 
 # 2. NATIVE ANSIBLE TRIGGER (Zero-Interaction)
 ansible:
