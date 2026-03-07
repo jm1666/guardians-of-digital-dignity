@@ -7,8 +7,30 @@ users:
     ssh_authorized_keys:
       - YOUR_SSH_PUBLIC_KEY_HERE
 
+write_files:
+  - path: /etc/apt/sources.list.d/debian.sources
+    content: |
+      Types: deb
+      URIs: https://deb.debian.org/debian/
+      Suites: trixie trixie-updates
+      Components: main contrib non-free non-free-firmware
+      Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp
+
+      Types: deb
+      URIs: https://deb.debian.org/debian-security/
+      Suites: trixie-security
+      Components: main contrib non-free non-free-firmware
+      Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp
+
+  - path: /etc/apt/sources.list.d/raspi.sources
+    content: |
+      Types: deb
+      URIs: https://archive.raspberrypi.com/debian/
+      Suites: trixie
+      Components: main
+      Signed-By: /usr/share/keyrings/raspberrypi-archive-keyring.pgp
+
 manage_resolv_conf: false
-timezone: #TODO
 keyboard:
   model: pc105
   layout: "us"
