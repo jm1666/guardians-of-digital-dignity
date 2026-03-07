@@ -1,0 +1,29 @@
+[connection]
+id=Fortress-AP
+type=wifi
+interface-name=wlan0
+autoconnect=true
+
+[wifi]
+ssid={{ gen_ssid }}
+mode=ap
+band=bg
+channel=0
+cloned-mac-address=permanent
+mac-address-randomization=never
+powersave=0
+
+[wifi-security]
+key-mgmt=wpa-psk
+proto=rsn
+pairwise=ccmp
+group=ccmp
+pmf=1
+psk={{ gen_wifi_psk }}
+
+[ipv4]
+method=manual
+address1=10.42.0.1/24
+
+[ipv6]
+method=ignore
