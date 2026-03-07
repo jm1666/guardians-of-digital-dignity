@@ -206,12 +206,12 @@
           nmcli connection up Fortress-AP
       when: nm_config_file.changed
 
-    - name: Install DNScrypt-Proxy
+    - name: Install Dnscrypt-Proxy
       ansible.builtin.apt:
         name: dnscrypt-proxy
         state: present
     
-    - name: Configure DNScrypt-Proxy Socket - Create drop-in directory
+    - name: Configure Dnscrypt-Proxy Socket - Create drop-in directory
       ansible.builtin.file:
         path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
         state: directory
@@ -226,8 +226,6 @@
         mode: '0644'
       notify: 
         - Reload Systemd
-        - Restart Dnscrypt Socket
-        - Restart Dnscrypt Service
 
     - name: Configure Dnscrypt-Proxy
       ansible.builtin.template:
@@ -236,8 +234,16 @@
         owner: root
         group: root
         mode: '0644'
-      notify: 
-        - Restart Dnscrypt Service
+
+    - name: Restart Dnscrypt-Proxy Socket
+      ansible.builtin.systemd:
+        name: dnscrypt-proxy.socket
+        state: restarted
+
+    - name: Restart Dnscrypt-Proxy Service
+      ansible.builtin.service:
+        name: dnscrypt-proxy
+        state: restarted
     
     - name: Deploy Global Stealth NM Configuration
       ansible.builtin.template:
@@ -475,18 +481,6 @@
       ansible.builtin.service:
         name: NetworkManager
         state: restarted
-
-    - name: Restart Dnscrypt Socket
-      ansible.builtin.systemd:
-        name: dnscrypt-proxy.socket
-        state: restarted
-        daemon_reload: yes
-
-    - name: Restart Dnscrypt Service
-      ansible.builtin.service:
-        name: dnscrypt-proxy
-        state: restarted
-      listen: "Restart Dnscrypt"
 
     - name: Restart Pi-hole
       ansible.builtin.service:
