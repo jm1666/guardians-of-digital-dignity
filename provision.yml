@@ -27,7 +27,7 @@
     # 2. SAVE SECRETS TO RECOVERY FILE
     - name: Create Recovery File for Admin
       copy:
-        dest: /home/fortress_admin/FORTRESS_RECOVERY.txt
+        dest: /home/fortress/FORTRESS_RECOVERY.txt
         owner: fortress_admin
         group: fortress_admin
         mode: '0600'
