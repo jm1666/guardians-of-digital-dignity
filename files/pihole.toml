@@ -1120,7 +1120,7 @@
     #
     # Allowed values are:
     #     A valid Pi-hole password hash
-    pwhash = "$BALLOON-SHA256$v=1$s=1024,t=32$F+xUmNR9Bvhgh2/Z7uy4YQ==$Pfk4/cI+h6N+kUYP1aJtAXK7XWBgV+DmKur7ykeMTI0=" ### CHANGED, default = ""
+    pwhash = "" ### CHANGED, default = ""
 
     # Pi-hole 2FA TOTP secret. When set to something different than "", 2FA authentication
     # will be enforced for the API and the web interface. This setting is write-only, you
