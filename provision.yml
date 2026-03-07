@@ -198,24 +198,6 @@
         name: systemd-resolved
         state: present
 
-    - name: Check if resolv.conf is already locked
-      ansible.builtin.shell:
-        cmd: |
-          lsattr /etc/resolv.conf
-      register: resolv_attr
-      changed_when: false
-      failed_when: false
-
-    - name: Reclaim and Lock DNS
-      when: "'i' not in resolv_attr.stdout"
-      become: true
-      ansible.builtin.shell:
-        cmd: |
-          rm -f /etc/resolv.conf
-          echo "nameserver 127.0.0.1" > /etc/resolv.conf
-          echo "options edns0 trust-ad" >> /etc/resolv.conf
-          chattr +i /etc/resolv.conf
-
     - name: Ensure systemd-resolved config directory exists
       ansible.builtin.file:
         state: directory
@@ -325,6 +307,24 @@
       with_nested:
         - ['nm-shared']
         - ['udp', 'tcp']
+
+    - name: Check if resolv.conf is already locked
+      ansible.builtin.shell:
+        cmd: |
+          lsattr /etc/resolv.conf
+      register: resolv_attr
+      changed_when: false
+      failed_when: false
+
+    - name: Reclaim and Lock DNS
+      when: "'i' not in resolv_attr.stdout"
+      become: true
+      ansible.builtin.shell:
+        cmd: |
+          rm -f /etc/resolv.conf
+          echo "nameserver 127.0.0.1" > /etc/resolv.conf
+          echo "options edns0 trust-ad" >> /etc/resolv.conf
+          chattr +i /etc/resolv.conf
 
     - name: Create keyring directory
       ansible.builtin.file:
