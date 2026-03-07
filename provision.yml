@@ -259,7 +259,7 @@
         path: /etc/systemd/resolved.conf.d
         owner: root
         group: root
-        mode: "0775"
+        mode: "0755"
 
     - name: Neutralize systemd-resolved stub listener
       ansible.builtin.template:
@@ -268,7 +268,11 @@
         owner: root
         group: root
         mode: '0644'
-      notify: Restart Resolved
+    
+    - name: Restart systemd-resolved
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: restarted
 
     # 3. NETWORK: Zones & NAT
     - name: Configure Firewalld (wlan0 for user side)
@@ -487,11 +491,6 @@
     - name: Restart Pi-hole
       ansible.builtin.service:
         name: pihole-FTL
-        state: restarted
-
-    - name: Restart Resolved
-      ansible.builtin.service:
-        name: systemd-resolved
         state: restarted
 
     - name: Reboot Required
