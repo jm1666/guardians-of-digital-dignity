@@ -17,12 +17,12 @@
         state: started
         enabled: yes
 
-    # 1. SECRET GENERATION (Random 16-char strings)
+    # 1. SECRET GENERATION
     - name: Generate unique secrets
-      set_fact:
+      ansible.builtin.set_fact:
         gen_wifi_psk: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') }}"
         gen_pihole_pw: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
-        gen_ssid: "Fortress-{{ ansible_default_ipv4.mac | last | replace(':', '') | upper }}"
+        gen_ssid: "Fortress-{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
 
     # 2. SAVE SECRETS TO RECOVERY FILE
     - name: Create Recovery File for Admin
@@ -129,9 +129,10 @@
       notify: Restart NetworkManager
 
     - name: Install Networking Stack
-      apt:
-        name: [dnscrypt-proxy]
+      ansible.builtin.apt:
+        name: dnscrypt-proxy
         state: present
+        update_cache: yes
     
     - name: Deploy Global Stealth NM Configuration
       ansible.builtin.copy:
@@ -156,7 +157,12 @@
     - name: Configure Dnscrypt-Proxy Socket (127.0.0.1:8053)
       copy:
         dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
-        content: "[Unit]\nDescription=dnscrypt socket\n[Socket]\nListenStream=\nListenDatagram=\nListenStream=127.0.0.1:8053\nListenDatagram=127.0.0.1:8053\n[Install]\nWantedBy=sockets.target"
+        content: |
+          [Socket]
+          ListenStream=
+          ListenDatagram=
+          ListenStream=127.0.0.1:8053
+          ListenDatagram=127.0.0.1:8053
       notify: 
         - Reload Systemd
         - Restart Dnscrypt Socket
