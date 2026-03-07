@@ -53,15 +53,22 @@
         - { iface: 'wlan1', zone: 'public' }
         - { iface: 'eth0', zone: 'trusted' }
 
-    - name: Set Public Zone to DROP and Enable Masquerade
+    - name: Set Public Zone to DROP
       ansible.builtin.shell: |
         firewall-cmd --permanent --zone=public --set-target=DROP
-        firewall-cmd --permanent --zone=public --add-masquerade
-        firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -i wlan0 -o wlan1 -j ACCEPT
+      notify: Reload Firewalld
+
+    - name: Close Public Zone Services
+      ansible.posix.firewalld:
+        zone: public
+        service: "{{ item }}"
+        permanent: true
+        state: disabled
+      loop: [ssh, dhcpv6-client]
       notify: Reload Firewalld
 
     # --- TTL MANGLING (ISP STEALTH) ---
-    - name: Configure TTL/HL Mangling (Hide Tethering)
+    - name: Configure TTL/HL Mangling
       ansible.builtin.shell:
         cmd: |
           firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 65
@@ -92,7 +99,7 @@
       notify: Reload Firewalld
 
     # 4. AP & PRIVACY (DHCP Handover to Pi-hole)
-    - name: Deploy Fixed NM Connection for wlan0 (Management)
+    - name: Deploy NM Connection for wlan0 (Management)
       ansible.builtin.copy:
         dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
         owner: root
@@ -128,7 +135,14 @@
 
           [ipv6]
           method=ignore
-      notify: Restart NetworkManager
+      register: nm_config_file
+
+    - name: Force NM to learn new config
+      ansible.builtin.shell: |
+        cmd: |
+          nmcli connection reload
+          nmcli connection up Fortress-AP
+      when: nm_config_file.changed
 
     - name: Install Networking Stack
       ansible.builtin.apt:
@@ -176,6 +190,32 @@
           hostname-mode=none
       notify: Restart NetworkManager
 
+    - name: Install systemd-resolved via Ansible
+      ansible.builtin.apt:
+        name: systemd-resolved
+        state: present
+        update_cache: yes
+
+    - name: Ensure systemd-resolved config directory exists
+      ansible.builtin.file:
+        state: directory
+        path: /etc/systemd/resolved.conf.d
+        owner: root
+        group: root
+        mode: "0775"
+
+    - name: Neutralize systemd-resolved stub listener
+      ansible.builtin.copy:
+        dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
+        owner: root
+        group: root
+        mode: '0644'
+        # Create directory if it doesn't exist
+        content: |
+          [Resolve]
+          DNSStubListener=no
+      notify: Restart Resolved
+
     - name: Open Ports for Pi-hole v6 (DNS/DHCP/Web)
       ansible.posix.firewalld:
         zone: nm-shared
@@ -210,241 +250,12 @@
         mode: "0775"
 
     - name: Deploy Pi-hole v6.0 Unified Config (TOML)
-      ansible.builtin.copy:
+      ansible.builtin.template:
+        src: files/pihole.toml
         dest: /etc/pihole/pihole.toml
         owner: pihole
         group: pihole
         mode: '0644'
-        content: |
-          [admin]
-          # Pi-hole v6 uses a hashed password or API token
-          # We'll set the initial password for your recovery
-          password = "{{ gen_pihole_pw }}" 
-
-          [dns]
-          upstreams = [ "127.0.0.1#8053" ]
-          domain = "fortress.local"
-          
-          [dns]
-          CNAMEdeepInspect = true
-          blockESNI = true
-          EDNS0ECS = true
-          ignoreLocalhost = false
-          showDNSSEC = true
-          analyzeOnlyAandAAAA = false
-          piholePTR = "PI.HOLE"
-          replyWhenBusy = "ALLOW"
-          blockTTL = 2
-          hosts = []
-          domainNeeded = false
-          expandHosts = false
-          bogusPriv = true
-          dnssec = false
-          interface = ""
-          hostRecord = ""
-          listeningMode = "LOCAL"
-          queryLogging = false
-          cnameRecords = []
-          port = 53
-          localise = true
-          revServers = []
-          
-          [dns.domain]
-          name = "fortress.local"
-          local = true
-          
-          [dns.cache]
-          size = 10000
-          optimizer = 3600
-          upstreamBlockedTTL = 86400
-          rrtype = "ANY"
-          
-          [dns.blocking]
-          active = true
-          mode = "NULL"
-          edns = "TEXT"
-          
-          [dns.specialDomains]
-          mozillaCanary = true
-          iCloudPrivateRelay = true
-          designatedResolver = true
-          
-          [dns.reply.host]
-          force4 = false
-          IPv4 = ""
-          force6 = false
-          IPv6 = ""
-          [dns.reply.blocking]
-          force4 = false
-          IPv4 = ""
-          force6 = false
-          IPv6 = ""
-          [dns.rateLimit]
-          count = 1000
-          interval = 60
-
-          [dhcp]
-          active = true
-          start = "10.42.0.10"
-          end = "10.42.0.50"
-          router = "10.42.0.1"
-          netmask = "255.255.255.0"
-          leaseTime = "8"
-          ipv6 = false
-          rapidCommit = false
-          multiDNS = false
-          logging = false
-          ignoreUnknownClients = false
-          hosts = []
-          
-          [ntp.ipv4]
-          active = true
-          address = ""
-          [ntp.ipv6]
-          active = true
-          address = ""
-          [ntp.sync]
-          active = true
-          server = "pool.ntp.org"
-          interval = 3600
-          count = 8
-          [ntp.sync.rtc]
-          set = false
-          device = ""
-          utc = true
-          [resolver]
-          resolveIPv4 = true
-          resolveIPv6 = true
-          networkNames = true
-          refreshNames = "IPV4_ONLY"
-          
-          [database]
-          DBimport = true
-          maxDBdays = 91
-          DBinterval = 60
-          useWAL = true
-          forceDisk = false
-          [database.network]
-          parseARPcache = true
-          expire = 91
-          
-          [webserver]
-          domain = "pi.hole"
-          acl = ""
-          port = "80o,443os,[::]:80o,[::]:443os"
-          threads = 50
-          headers = [
-            "X-DNS-Prefetch-Control: off",
-            "Content-Security-Policy: default-src 'none'; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; img-src 'self'; manifest-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
-            "X-Frame-Options: DENY",
-            "X-XSS-Protection: 0",
-            "X-Content-Type-Options: nosniff",
-            "Referrer-Policy: strict-origin-when-cross-origin"
-          ]
-          serve_all = false
-          advancedOpts = []
-          
-          [webserver.session]
-          timeout = 1800
-          restore = true
-          
-          [webserver.tls]
-          cert = "/etc/pihole/tls.pem"
-          validity = 47
-          
-          [webserver.paths]
-          webroot = "/var/www/html"
-          webhome = "/admin/"
-          prefix = ""
-          
-          [webserver.interface]
-          boxed = true
-          theme = "default-auto"
-          
-          [webserver.api]
-          max_sessions = 16
-          prettyJSON = false
-          pwhash = ""
-          totp_secret = ""
-          app_pwhash = ""
-          app_sudo = false
-          cli_pw = true
-          excludeClients = []
-          excludeDomains = []
-          maxHistory = 86400
-          maxClients = 10
-          client_history_global_max = false
-          allow_destructive = false
-          
-          [webserver.api.temp]
-          limit = 60.000000
-          unit = "C"
-          
-          [files]
-          pid = "/run/pihole-FTL.pid"
-          database = "/etc/pihole/pihole-FTL.db"
-          tmp_db = "/etc/pihole/pihole-tmp.db"
-          gravity = "/etc/pihole/gravity.db"
-          gravity_tmp = "/tmp"
-          macvendor = "/etc/pihole/macvendor.db"
-          pcap = ""
-          
-          [files.log]
-          ftl = "/var/log/pihole/FTL.log"
-          dnsmasq = "/var/log/pihole/pihole.log"
-          webserver = "/var/log/pihole/webserver.log"
-          
-          [misc]
-          privacylevel = 3
-          delay_startup = 0
-          nice = -10
-          addr2line = true
-          etc_dnsmasq_d = false
-          dnsmasq_lines = []
-          extraLogging = false
-          readOnly = false
-          normalizeCPU = true
-          hide_dnsmasq_warn = false
-          hide_connection_error = false
-          
-          [misc.check]
-          load = true
-          shmem = 90
-          disk = 90
-          
-          [debug]
-          database = false
-          networking = false
-          locks = false
-          queries = false
-          flags = false
-          shmem = false
-          gc = false
-          arp = false
-          regex = false
-          api = false
-          tls = false
-          overtime = false
-          status = false
-          caps = false
-          dnssec = false
-          vectors = false
-          resolver = false
-          edns0 = false
-          clients = false
-          aliasclients = false
-          events = false
-          helper = false
-          config = false
-          inotify = false
-          webserver = false
-          extra = false
-          reserved = false
-          ntp = false
-          netlink = false
-          timing = false
-          all = false
-      notify: Restart NetworkManager
   
     - name: Run Pi-hole v6 unattended installer
       ansible.builtin.shell:
