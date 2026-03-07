@@ -25,5 +25,4 @@ echo -e "TAILSCALE:     $(tailscale status --peers=false 2>/dev/null | head -n1 
 
 echo -e "\n\e[1;32m[ SECURITY ]\e[0m"
 echo -e "ETH0 ZONE:     $(firewall-cmd --get-active-zones | grep -B1 eth0 | head -n1 || echo 'UNASSIGNED')"
-echo -e "PUBLIC ZONE:   $(firewall-cmd --zone=public --get-target)"
 echo -e "\e[1;34m---------------------------\e[0m\n"
