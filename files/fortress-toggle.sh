@@ -14,22 +14,15 @@ MODE_FILE="/var/lib/fortress_mode"
 case $MODE in
   maint)
     echo -e "\e[1;34m[-] Switching to Maintenance MODE...\e[0m"
-    # eth0 becomes your trusted management port
     firewall-cmd --zone=trusted --change-interface=$ETH
-    # Open all routing paths
-    firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
-    firewall-cmd --policy hotspotToVPN --set-target ACCEPT
-    # Kill the tunnel for raw speed
-    tailscale up --exit-node=
+    tailscale up --reset --exit-node= || exit 1
     echo -e "\e[1;33m[!] WARNING: Changes are RUNTIME ONLY. Reboot will Seal the Fortress.\e[0m"
     ;;
 
   lean)
     echo -e "\e[1;33m[|] Switching to LEAN MODE (Scout/DNS Only)...\e[0m"
-    # eth0/wlan1 are Public WAN (Hardened DROP)
     firewall-cmd --permanent --zone=public --change-interface=$ETH
     firewall-cmd --permanent --zone=public --change-interface=$WLAN_WAN
-    # Block Forwarding (DNS Hijack only)
     firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
     firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
     tailscale up --reset --accept-routes=true || exit 1
@@ -40,13 +33,10 @@ case $MODE in
 
   secure)
     echo -e "\e[1;31m[!] Switching to SECURE MODE (VPN)...\e[0m"
-    # Harden all external interfaces
     firewall-cmd --permanent --zone=public --change-interface=$ETH
     firewall-cmd --permanent --zone=public --change-interface=$WLAN_WAN
-    # Kill-switch: All traffic MUST hit the VPN
     firewall-cmd --permanent --policy hotspotToPublic --set-target REJECT
     firewall-cmd --permanent --policy hotspotToVPN --set-target ACCEPT
-    # Force Tailscale Exit Node
     tailscale up --reset --exit-node=$2 --exit-node-allow-lan-access=true --accept-routes=true || exit 1
     firewall-cmd --reload
     echo "SECURE" > "$MODE_FILE"
