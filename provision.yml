@@ -27,7 +27,7 @@
     # --- GUI: OPENBOX + TINT2 + XRDP ---
     - name: Install Minimal GUI Stack
       ansible.builtin.apt:
-        name: [xrdp, xorgxrdp, openbox, tint2, xterm]
+        name: [xrdp, xorgxrdp, openbox, tint2, xterm, rpi-chromium-mods]
         state: present
 
     - name: Configure XRDP to start Openbox
