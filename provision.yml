@@ -6,27 +6,27 @@
 
   tasks:
     - name: Install Firewalld safely via Ansible
-      apt:
+      ansible.builtin.apt:
         name: firewalld
         state: present
         update_cache: yes
 
     - name: Ensure Firewalld is started and enabled
-      service:
+      ansible.builtin.service:
         name: firewalld
         state: started
         enabled: yes
 
     # 1. SECRET GENERATION
     - name: Generate unique secrets
-      set_fact:
+      ansible.builtin.set_fact:
         gen_wifi_psk: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') }}"
         gen_pihole_pw: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
         gen_ssid: "Fortress-{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
 
     # 2. SAVE SECRETS TO RECOVERY FILE
     - name: Create Recovery File for Admin
-      copy:
+      ansible.builtin.copy:
         dest: /home/fortress/FORTRESS_RECOVERY.txt
         owner: fortress
         group: fortress
@@ -54,7 +54,7 @@
         - { iface: 'eth0', zone: 'trusted' }
 
     - name: Set Public Zone to DROP and Enable Masquerade
-      shell: |
+      ansible.builtin.shell: |
         firewall-cmd --permanent --zone=public --set-target=DROP
         firewall-cmd --permanent --zone=public --add-masquerade
         firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -i wlan0 -o wlan1 -j ACCEPT
@@ -62,7 +62,7 @@
 
     # --- TTL MANGLING (ISP STEALTH) ---
     - name: Configure TTL/HL Mangling (Hide Tethering)
-      shell:
+      ansible.builtin.shell:
         cmd: |
           firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 65
           firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 65
@@ -70,28 +70,30 @@
 
     # --- FIREWALLD POLICIES (THE KILL-SWITCH) ---
     - name: Create Hotspot to Public Policy (Scout)
-      shell: |
-        firewall-cmd --permanent --new-policy hotspotToPublic
-        firewall-cmd --permanent --policy hotspotToPublic --add-ingress-zone nm-shared
-        firewall-cmd --permanent --policy hotspotToPublic --add-egress-zone public
-        firewall-cmd --permanent --policy hotspotToPublic --set-priority -1
-        firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
-        firewall-cmd --permanent --policy hotspotToPublic --add-masquerade
+      ansible.builtin.shell: |
+        cmd: |
+          firewall-cmd --permanent --new-policy hotspotToPublic
+          firewall-cmd --permanent --policy hotspotToPublic --add-ingress-zone nm-shared
+          firewall-cmd --permanent --policy hotspotToPublic --add-egress-zone public
+          firewall-cmd --permanent --policy hotspotToPublic --set-priority -1
+          firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
+          firewall-cmd --permanent --policy hotspotToPublic --add-masquerade
       notify: Reload Firewalld
 
     - name: Create Hotspot to VPN Policy (Tailscale)
-      shell: |
-        firewall-cmd --permanent --new-policy hotspotToVPN
-        firewall-cmd --permanent --policy hotspotToVPN --add-ingress-zone nm-shared
-        firewall-cmd --permanent --policy hotspotToVPN --add-egress-zone work
-        firewall-cmd --permanent --policy hotspotToVPN --set-priority -10
-        firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
-        firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
+      ansible.builtin.shell: |
+        cmd: |
+          firewall-cmd --permanent --new-policy hotspotToVPN
+          firewall-cmd --permanent --policy hotspotToVPN --add-ingress-zone nm-shared
+          firewall-cmd --permanent --policy hotspotToVPN --add-egress-zone work
+          firewall-cmd --permanent --policy hotspotToVPN --set-priority -10
+          firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
+          firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
       notify: Reload Firewalld
 
     # 4. AP & PRIVACY (DHCP Handover to Pi-hole)
     - name: Deploy Fixed NM Connection for wlan0 (Management)
-      copy:
+      ansible.builtin.copy:
         dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
         owner: root
         group: root
@@ -129,13 +131,13 @@
       notify: Restart NetworkManager
 
     - name: Install Networking Stack
-      apt:
+      ansible.builtin.apt:
         name: dnscrypt-proxy
         state: present
         update_cache: yes
     
     - name: Deploy Global Stealth NM Configuration
-      copy:
+      ansible.builtin.copy:
         dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
         owner: root
         group: root
@@ -155,13 +157,13 @@
       notify: Restart NetworkManager
 
     - name: Configure Dnscrypt-Proxy Socket - Create drop-in directory
-      file:
+      ansible.builtin.file:
         path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
         state: directory
         mode: '0755'
 
     - name: Configure Dnscrypt-Proxy Socket (127.0.0.1:8053)
-      copy:
+      ansible.builtin.copy:
         dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
         content: |
           [Socket]
@@ -184,13 +186,13 @@
 
     # --- PI-HOLE v6.0 CONFIGURATION ---
     - name: Ensure Pi-hole config directory exists
-      file:
+      ansible.builtin.file:
         path: /etc/pihole
         state: directory
         mode: '0755'
 
     - name: Deploy Pi-hole v6.0 Unified Config (TOML)
-      copy:
+      ansible.builtin.copy:
         dest: /etc/pihole/pi-hole.toml
         owner: root
         group: root
@@ -217,14 +219,14 @@
       notify: Restart NetworkManager
   
     - name: Run Pi-hole v6 unattended installer
-      shell:
+      ansible.builtin.shell:
         cmd: curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
         # The 'creates' check ensures it doesn't re-run every time you fix a minor bug
         creates: /usr/local/bin/pihole
       register: pihole_install_result
 
     - name: Set Pi-hole Admin Password
-      shell: "pihole setpassword {{ gen_pihole_pw }}"
+      ansible.builtin.shell: "pihole setpassword {{ gen_pihole_pw }}"
 
     - name: Hijack Port 53 (DNS Redirect)
       ansible.posix.firewalld:
@@ -236,7 +238,7 @@
 
     # 5. TAILSCALE
     - name: Install Tailscale
-      shell: curl -fsSL https://tailscale.com | sh
+      ansible.builtin.shell: curl -fsSL https://tailscale.com | sh
       args: { creates: /usr/bin/tailscale }
 
   handlers:
