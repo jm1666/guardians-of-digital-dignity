@@ -14,6 +14,7 @@ keyboard:
   layout: "us"
 enable_ssh: true
 ssh_pwauth: false
+package_update: true
 
 rpi:
   interfaces:
