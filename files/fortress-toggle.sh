@@ -1,8 +1,5 @@
 #!/bin/bash
-# Fortress Tri-Mode: eth0/wlan1 as WAN, wifi0 as LAN
-# Usage: sudo fortress-mode [home|lean|secure]
 
-# 1. ENFORCE ROOT/SUDO
 if [[ $EUID -ne 0 ]]; then
    echo -e "\e[1;31m[!] ERROR: This script must be run with sudo.\e[0m" 
    exit 1
@@ -25,7 +22,6 @@ case $MODE in
     # Kill the tunnel for raw speed
     tailscale up --exit-node=
     echo -e "\e[1;33m[!] WARNING: Changes are RUNTIME ONLY. Reboot will Seal the Fortress.\e[0m"
-    echo "MAINT" > "$MODE_FILE"
     ;;
 
   lean)
