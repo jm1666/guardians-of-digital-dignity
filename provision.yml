@@ -28,8 +28,8 @@
     - name: Create Recovery File for Admin
       copy:
         dest: /home/fortress/FORTRESS_RECOVERY.txt
-        owner: fortress_admin
-        group: fortress_admin
+        owner: fortress
+        group: fortress
         mode: '0600'
         content: |
           --- FORTRESS RECOVERY KEYSET ---
