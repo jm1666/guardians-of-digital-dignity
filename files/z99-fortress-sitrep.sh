@@ -8,7 +8,7 @@ if [ -f /home/fortress/FORTRESS_RECOVERY.txt ]; then
     echo -e "\e[33mSecure credentials and 'shred -u ~/FORTRESS_RECOVERY.txt' immediately.\e[0m"
 fi
 
-MODE=$(cat /var/lib/guardian_mode 2>/dev/null || echo "UNKNOWN")
+MODE=$(cat /var/lib/fortress_mode 2>/dev/null || echo "UNKNOWN")
 
 # 2. THE SITREP (TACTICAL VIEW)
 echo -e "\n\e[1;34m--- [ FORTRESS SITREP ] ---\e[0m"
