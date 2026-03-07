@@ -11,9 +11,12 @@
         gen_pihole_pw: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
         gen_ssid: "Fortress-{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
 
-    - name: Install Firewalld
+    - name: Install basic dependencies
       ansible.builtin.apt:
-        name: firewalld
+        name:
+          - curl
+          - gnupg
+          - firewalld
         state: present
         update_cache: yes
 
@@ -26,7 +29,13 @@
     # --- GUI: OPENBOX + TINT2 + XRDP ---
     - name: Install Minimal GUI Stack
       ansible.builtin.apt:
-        name: [xrdp, xorgxrdp, openbox, tint2, xterm, rpi-chromium-mods]
+        name:
+          - xrdp
+          - xorgxrdp
+          - openbox
+          - tint2
+          - xterm
+          - rpi-chromium-mods
         state: present
 
     - name: Configure XRDP to start Openbox
@@ -230,7 +239,10 @@
         service: "{{ item }}"
         permanent: true
         state: enabled
-      loop: [dns, dhcp, http]
+      loop:
+        - dns
+        - dhcp
+        - http
 
     - name: Create pihole group
       ansible.builtin.group:
@@ -308,12 +320,35 @@
         state: enabled
       loop: ['nm-shared']
 
-    - name: Install Tailscale via script
-      ansible.builtin.shell:
-        cmd: curl -fsSL https://tailscale.com | sh
-        # This 'executable' argument is the key fix
-        executable: /bin/bash
-        creates: /usr/bin/tailscale
+    - name: Create keyring directory
+      ansible.builtin.file:
+        path: /usr/share/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Tailscale GPG key
+      ansible.builtin.get_url:
+        url: "https://tailscale.com{{ debian_codename }}.noarmor.gpg"
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: '0644'
+
+    - name: Add Tailscale repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian {{ debian_codename }} main"
+        state: present
+        filename: tailscale
+
+    - name: Install Tailscale package
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
+
+    - name: Ensure tailscaled service is enabled
+      ansible.builtin.systemd:
+        name: tailscaled
+        state: started
+        enabled: true
 
     - name: Apply Fortress Kernel Hardening
       ansible.posix.sysctl:
