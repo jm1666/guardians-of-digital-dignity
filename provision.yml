@@ -7,14 +7,31 @@
   tasks:
     - name: Generate unique secrets
       ansible.builtin.set_fact:
-        gen_wifi_psk: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') }}"
-        gen_pihole_pw: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
-        gen_ssid: "Fortress-{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
-
-    # --- STEP 0: IDENTITY ANONYMIZATION ---
-    - name: Generate a random hostname
-      ansible.builtin.set_fact:
+        gen_wifi_psk: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') }}"
+        gen_pihole_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=12') }}"
+        gen_ssid: "Fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
         new_fortress_name: "fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_lowercase,digits length=6') }}"
+
+    - name: Unblock WiFi Radio
+      ansible.builtin.shell:
+        cmd: rfkill unblock wifi
+      changed_when: false
+
+    - name: Persist RFKILL State (Systemd Override)
+      ansible.builtin.shell:
+        cmd: |
+          for f in /var/lib/systemd/rfkill/*:wlan; do 
+            if [ -f "$f" ]; then
+              echo 0 > "$f"
+            fi
+          done
+      register: rfkill_persist
+      changed_when: "rfkill_persist.rc == 0"
+
+    - name: Ensure WiFi is enabled in NetworkManager
+      ansible.builtin.shell:
+        cmd: nmcli radio wifi on
+      changed_when: false
 
     - name: Set the system hostname
       ansible.builtin.hostname:
