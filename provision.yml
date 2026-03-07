@@ -136,6 +136,26 @@
         state: present
         update_cache: yes
     
+    - name: Configure Dnscrypt-Proxy Socket - Create drop-in directory
+      ansible.builtin.file:
+        path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
+        state: directory
+        mode: '0755'
+
+    - name: Configure Dnscrypt-Proxy Socket (127.0.0.1:8053)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
+        content: |
+          [Socket]
+          ListenStream=
+          ListenDatagram=
+          ListenStream=127.0.0.1:8053
+          ListenDatagram=127.0.0.1:8053
+      notify: 
+        - Reload Systemd
+        - Restart Dnscrypt Socket
+        - Restart Dnscrypt Service
+    
     - name: Deploy Global Stealth NM Configuration
       ansible.builtin.copy:
         dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
@@ -156,26 +176,6 @@
           hostname-mode=none
       notify: Restart NetworkManager
 
-    - name: Configure Dnscrypt-Proxy Socket - Create drop-in directory
-      ansible.builtin.file:
-        path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
-        state: directory
-        mode: '0755'
-
-    - name: Configure Dnscrypt-Proxy Socket (127.0.0.1:8053)
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
-        content: |
-          [Socket]
-          ListenStream=
-          ListenDatagram=
-          ListenStream=127.0.0.1:8053
-          ListenDatagram=127.0.0.1:8053
-      notify: 
-        - Reload Systemd
-        - Restart Dnscrypt Socket
-        - Restart Dnscrypt Service
-
     - name: Open Ports for Pi-hole v6 (DNS/DHCP/Web)
       ansible.posix.firewalld:
         zone: nm-shared
@@ -184,18 +184,36 @@
         state: enabled
       loop: [dns, dhcp, http]
 
-    # --- PI-HOLE v6.0 CONFIGURATION ---
+    - name: Create pihole group
+      ansible.builtin.group:
+        name: pihole
+        state: present
+    
+    - name: Create pihole user
+      ansible.builtin.user:
+        name: pihole
+        home: "/home/pihole"
+        shell: "/usr/sbin/nologin"
+        comment: "PiHole"
+        group: pihole
+        password: "*"
+        state: present
+        remove: true
+        force: true
+
     - name: Ensure Pi-hole config directory exists
       ansible.builtin.file:
-        path: /etc/pihole
         state: directory
-        mode: '0755'
+        path: /etc/pihole
+        owner: pihole
+        group: pihole
+        mode: "0775"
 
     - name: Deploy Pi-hole v6.0 Unified Config (TOML)
       ansible.builtin.copy:
         dest: /etc/pihole/pi-hole.toml
-        owner: root
-        group: root
+        owner: pihole
+        group: pihole
         mode: '0644'
         content: |
           [admin]
@@ -221,12 +239,12 @@
     - name: Run Pi-hole v6 unattended installer
       ansible.builtin.shell:
         cmd: curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
-        # The 'creates' check ensures it doesn't re-run every time you fix a minor bug
-        creates: /usr/local/bin/pihole
+        creates: /etc/systemd/system/pihole-FTL.service
       register: pihole_install_result
 
     - name: Set Pi-hole Admin Password
-      ansible.builtin.shell: "pihole setpassword {{ gen_pihole_pw }}"
+      ansible.builtin.shell:
+        cmd: "pihole setpassword {{ gen_pihole_pw }}"
 
     - name: Hijack Port 53 (DNS Redirect)
       ansible.posix.firewalld:
