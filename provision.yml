@@ -187,7 +187,7 @@
     - name: Deploy Global Stealth NM Configuration
       ansible.builtin.template:
         src: files/99-fortress-stealth.conf
-        dest: /etc/pihole/99-fortress-stealth.conf
+        dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
         owner: root
         group: root
         mode: '0644'
@@ -386,6 +386,14 @@
       ansible.builtin.template:
         src: files/z99-fortress-sitrep.sh
         dest: /etc/profile.d/z99-fortress-sitrep.sh
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Deploy fortress-mode toggle script
+      ansible.builtin.template:
+        src: files/fortress-toggle.sh
+        dest: /usr/local/bin/fortress-toggle
         owner: root
         group: root
         mode: '0644'
