@@ -12,10 +12,11 @@ MODE=$1
 ETH="eth0"
 WLAN_WAN="wlan1"
 EXIT_NODE=$2
+MODE_FILE="/var/lib/fortress_mode"
 
 case $MODE in
-  home)
-    echo -e "\e[1;34m[-] Switching to HOME MODE (Maintenance)...\e[0m"
+  maint)
+    echo -e "\e[1;34m[-] Switching to Maintenance MODE...\e[0m"
     # eth0 becomes your trusted management port
     firewall-cmd --zone=trusted --change-interface=$ETH
     # Open all routing paths
@@ -24,6 +25,7 @@ case $MODE in
     # Kill the tunnel for raw speed
     tailscale up --exit-node=
     echo -e "\e[1;33m[!] WARNING: Changes are RUNTIME ONLY. Reboot will Seal the Fortress.\e[0m"
+    echo "MAINT" > "$MODE_FILE"
     ;;
 
   lean)
@@ -33,25 +35,29 @@ case $MODE in
     firewall-cmd --permanent --zone=public --change-interface=$WLAN_WAN
     # Block Forwarding (DNS Hijack only)
     firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
-    tailscale up --exit-node=
+    firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
+    tailscale up --reset --accept-routes=true || exit 1
     firewall-cmd --reload
+    echo "LEAN" > "$MODE_FILE"
     echo -e "\e[1;32m[✓] Lean Mode: eth0/wlan1 are DROP. Forwarding REJECTED.\e[0m"
     ;;
 
   secure)
-    echo -e "\e[1;31m[!] Switching to SECURE MODE (Dreamgate)...\e[0m"
+    echo -e "\e[1;31m[!] Switching to SECURE MODE (VPN)...\e[0m"
     # Harden all external interfaces
     firewall-cmd --permanent --zone=public --change-interface=$ETH
     firewall-cmd --permanent --zone=public --change-interface=$WLAN_WAN
     # Kill-switch: All traffic MUST hit the VPN
     firewall-cmd --permanent --policy hotspotToPublic --set-target REJECT
+    firewall-cmd --permanent --policy hotspotToVPN --set-target ACCEPT
     # Force Tailscale Exit Node
-    tailscale up --exit-node=$2 --exit-node-allow-lan-access=true
+    tailscale up --reset --exit-node=$2 --exit-node-allow-lan-access=true --accept-routes=true || exit 1
     firewall-cmd --reload
+    echo "SECURE" > "$MODE_FILE"
     echo -e "\e[1;32m[✓] Secure Mode: Tunneling through $EXIT_NODE.\e[0m"
     ;;
 
   *)
-    echo "Usage: sudo fortress-mode [home|lean|secure]"
+    echo "Usage: sudo fortress-mode [maint|lean|secure]"
     ;;
 esac
