@@ -158,7 +158,6 @@
       loop: [ssh, dhcpv6-client]
       notify: Reload Firewalld
 
-    # --- TTL MANGLING (ISP STEALTH) ---
     - name: Configure TTL/HL Mangling
       ansible.builtin.shell:
         cmd: |
@@ -474,6 +473,19 @@
         group: root
         mode: '0755'
 
+    - name: Configure journald to use RAM only
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/journald.conf
+        regexp: '^#?Storage='
+        line: 'Storage=volatile'
+      notify: Restart journald
+    
+    - name: Ensure /var/log/journal is removed (Force Volatile)
+      ansible.builtin.file:
+        path: /var/log/journal
+        state: absent
+      notify: Restart journald
+
   handlers:
     - name: Reload Systemd
       ansible.builtin.systemd:
@@ -492,3 +504,8 @@
     - name: Reboot Required
       ansible.builtin.set_fact:
         needs_reboot: true
+        
+    - name: Restart journald
+      ansible.builtin.service:
+        name: systemd-journald
+        state: restarted
