@@ -12,16 +12,6 @@
       failed_when: ts_status.rc != 0
       # If this fails, the playbook stops here to prevent a lockout.
 
-    - name: Configure Firewalld 
-      ansible.posix.firewalld:
-        interface: "{{ item.iface }}"
-        zone: "{{ item.zone }}"
-        state: enabled
-        permanent: true
-        immediate: true
-      loop:
-        - { iface: 'tailscale0', zone: 'work' }
-
     - name: Generate unique high-entropy sudo password
       ansible.builtin.set_fact:
         new_sudo_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits,symbols length=20') }}"
