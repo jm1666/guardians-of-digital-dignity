@@ -51,32 +51,21 @@
         group: fortress
 
     - name: Configure Openbox Autostart (Launch tint2)
-      ansible.builtin.copy:
+      ansible.builtin.template:
+        src: files/openbox-autostart
         dest: /home/fortress/.config/openbox/autostart
         owner: fortress
         group: fortress
         mode: '0755'
-        content: |
-          # Start the tint2 panel in the background
-          tint2 &
-          # Optional: disable screen blanking for your monitoring dashboard
-          xset s off && xset -dpms &
 
     # 2. SAVE SECRETS TO RECOVERY FILE
-    - name: Create Recovery File for Admin
-      ansible.builtin.copy:
+    - name: Create Recovery File
+      ansible.builtin.template:
+        src: files/FORTRESS_RECOVERY.txt
         dest: /home/fortress/FORTRESS_RECOVERY.txt
         owner: fortress
         group: fortress
-        mode: '0600'
-        content: |
-          --- FORTRESS RECOVERY KEYSET ---
-          TIMESTAMP: {{ ansible_date_time.iso8601 }}
-          SSID:      {{ gen_ssid }}
-          WIFI PSK:  {{ gen_wifi_psk }}
-          PI-HOLE:   {{ gen_pihole_pw }}
-          --------------------------------
-          SECURE THESE AND DELETE THIS FILE BEFORE RUNNING 'SEAL'.
+        mode: '0600'      
 
     # 3. NETWORK: Zones & NAT
     - name: Configure Firewalld (eth0=Trusted, wifi1=Public DROP)
@@ -138,41 +127,12 @@
 
     # 4. AP & PRIVACY (DHCP Handover to Pi-hole)
     - name: Deploy NM Connection for wlan0 (Management)
-      ansible.builtin.copy:
+      ansible.builtin.template:
+        src: files/Fortress-AP.nmconnection
         dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
         owner: root
         group: root
         mode: '0600'
-        content: |
-          [connection]
-          id=Fortress-AP
-          type=wifi
-          interface-name=wlan0
-          autoconnect=true
-
-          [wifi]
-          ssid={{ gen_ssid }}
-          mode=ap
-          band=bg
-          channel=0
-          cloned-mac-address=permanent
-          mac-address-randomization=never
-          powersave=0
-
-          [wifi-security]
-          key-mgmt=wpa-psk
-          proto=rsn
-          pairwise=ccmp
-          group=ccmp
-          pmf=1
-          psk={{ gen_wifi_psk }}
-
-          [ipv4]
-          method=manual
-          address1=10.42.0.1/24
-
-          [ipv6]
-          method=ignore
       register: nm_config_file
 
     - name: Force NM to learn new config
@@ -194,14 +154,12 @@
         mode: '0755'
 
     - name: Configure Dnscrypt-Proxy Socket via Drop-Ins
-      ansible.builtin.copy:
+      ansible.builtin.template:
+        src: files/dnscrypt-proxy.socket-override.conf
         dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
-        content: |
-          [Socket]
-          ListenStream=
-          ListenDatagram=
-          ListenStream=127.0.0.1:8053
-          ListenDatagram=127.0.0.1:8053
+        owner: root
+        group: root
+        mode: '0644'
       notify: 
         - Reload Systemd
         - Restart Dnscrypt Socket
