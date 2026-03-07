@@ -20,20 +20,6 @@ rpi:
     serial: true
     i2c: true
 
-# 1. THE GUARDIAN (Written immediately)
-write_files:
-  - path: /usr/local/bin/post-install.sh
-    owner: root:root
-    permissions: '0755'
-    content: |
-      #!/bin/bash
-      echo "--- FORTRESS STATUS REPORT ---"
-      if [ -f /home/fortress/FORTRESS_RECOVERY.txt ]; then
-          echo "[!] RECOVERY SECRETS FOUND. SECURE THEM AND DELETE THE FILE."
-          cat /home/fortress/FORTRESS_RECOVERY.txt
-      fi
-
-# 2. NATIVE ANSIBLE TRIGGER (Zero-Interaction)
 ansible:
   install_method: distro
   package_name: ansible
@@ -41,8 +27,4 @@ ansible:
     url: "https://github.com/jm1666/guardians-of-digital-dignity.git"
     playbook_name: "provision.yml"
 
-runcmd:
-  - [ /usr/local/bin/post-install.sh ]
-  - [ rfkill, unblock, wifi ]
-  - [ sh, -c, "for f in /var/lib/systemd/rfkill/*:wlan; do echo 0 > \"$f\"; done" ]
 
