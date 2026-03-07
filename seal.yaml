@@ -18,9 +18,18 @@
         firewall-cmd --permanent --zone=trusted --remove-interface=eth0
       notify: Reload Firewalld
 
-    - name: Securely shred the Recovery Secrets file
+    - name: Securely shred the traces
       ansible.builtin.shell:
-        cmd: shred -u /home/fortress_admin/FORTRESS_RECOVERY.txt
+        cmd: |
+          # Shred the recovery file
+          [ -f /home/fortress/FORTRESS_RECOVERY.txt ] && shred -u /home/fortress/FORTRESS_RECOVERY.txt
+          
+          # Shred Bash and Root history
+          shred -u /home/fortress_admin/.bash_history
+          shred -u /root/.bash_history
+          
+          # Clear current session history
+          history -c
       register: shred_result
       failed_when: false # Don't crash if it was already deleted
 
