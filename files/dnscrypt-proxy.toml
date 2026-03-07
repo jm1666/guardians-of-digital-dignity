@@ -1,0 +1,23 @@
+# Empty listen_addresses to use systemd socket activation
+listen_addresses = []
+server_names = ['cloudflare1112', 'cloudflare1002']
+
+ignore_system_dns = true
+
+cache = true
+cache_size = 4096
+cache_min_ttl = 2400
+cache_max_ttl = 86400
+cache_neg_min_ttl = 60
+cache_neg_max_ttl = 600
+
+[captive_portals]
+  map_file = 'captive-portals.txt'
+
+[static]
+  [static.cloudflare1112]
+  stamp = 'sdns://AgMAAAAAAAAABzEuMS4xLjIAG3NlY3VyaXR5LmNsb3VkZmxhcmUtZG5zLmNvbQovZG5zLXF1ZXJ5'
+
+  [static.cloudflare1002]
+  stamp = 'sdns://AgMAAAAAAAAABzEuMC4wLjIAG3NlY3VyaXR5LmNsb3VkZmxhcmUtZG5zLmNvbQovZG5zLXF1ZXJ5'
+
