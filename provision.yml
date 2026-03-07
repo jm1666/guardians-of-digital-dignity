@@ -1,0 +1,243 @@
+---
+- name: The Great One - Automated Fortress Build
+  hosts: localhost
+  connection: local
+  become: true
+
+  tasks:
+    # 1. SECRET GENERATION (Random 16-char strings)
+    - name: Generate unique secrets
+      set_fact:
+        gen_wifi_psk: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=16') }}"
+        gen_pihole_pw: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=12') }}"
+        gen_ssid: "Fortress-{{ ansible_default_ipv4.mac | last | replace(':', '') | upper }}"
+
+    # 2. SAVE SECRETS TO RECOVERY FILE
+    - name: Create Recovery File for Admin
+      copy:
+        dest: /home/fortress_admin/FORTRESS_RECOVERY.txt
+        owner: fortress_admin
+        group: fortress_admin
+        mode: '0600'
+        content: |
+          --- FORTRESS RECOVERY KEYSET ---
+          TIMESTAMP: {{ ansible_date_time.iso8601 }}
+          SSID:      {{ gen_ssid }}
+          WIFI PSK:  {{ gen_wifi_psk }}
+          PI-HOLE:   {{ gen_pihole_pw }}
+          --------------------------------
+          SECURE THESE AND DELETE THIS FILE BEFORE RUNNING 'SEAL'.
+
+    # 3. NETWORK: Zones & NAT
+    - name: Configure Firewalld (eth0=Trusted, wifi1=Public DROP)
+      ansible.posix.firewalld:
+        interface: "{{ item.iface }}"
+        zone: "{{ item.zone }}"
+        state: enabled
+        permanent: true
+        immediate: true
+      loop:
+        - { iface: 'wlan0', zone: 'nm-shared' }
+        - { iface: 'wlan1', zone: 'public' }
+        - { iface: 'eth0', zone: 'trusted' }
+
+    - name: Set Public Zone to DROP and Enable Masquerade
+      shell: |
+        firewall-cmd --permanent --zone=public --set-target=DROP
+        firewall-cmd --permanent --zone=public --add-masquerade
+        firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -i wlan0 -o wlan1 -j ACCEPT
+      notify: Reload Firewalld
+
+    # --- TTL MANGLING (ISP STEALTH) ---
+    - name: Configure TTL/HL Mangling (Hide Tethering)
+      ansible.builtin.shell:
+        cmd: |
+          firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 65
+          firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 65
+      notify: Reload Firewalld
+
+    # --- FIREWALLD POLICIES (THE KILL-SWITCH) ---
+    - name: Create Hotspot to Public Policy (Scout)
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --new-policy hotspotToPublic
+        firewall-cmd --permanent --policy hotspotToPublic --add-ingress-zone nm-shared
+        firewall-cmd --permanent --policy hotspotToPublic --add-egress-zone public
+        firewall-cmd --permanent --policy hotspotToPublic --set-priority -1
+        firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
+        firewall-cmd --permanent --policy hotspotToPublic --add-masquerade
+      notify: Reload Firewalld
+
+    - name: Create Hotspot to VPN Policy (Tailscale)
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --new-policy hotspotToVPN
+        firewall-cmd --permanent --policy hotspotToVPN --add-ingress-zone nm-shared
+        firewall-cmd --permanent --policy hotspotToVPN --add-egress-zone work
+        firewall-cmd --permanent --policy hotspotToVPN --set-priority -10
+        firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
+        firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
+      notify: Reload Firewalld
+
+    # 4. AP & PRIVACY (DHCP Handover to Pi-hole)
+    - name: Deploy Fixed NM Connection for wlan0 (Management)
+      ansible.builtin.copy:
+        dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
+        owner: root
+        group: root
+        mode: '0600'
+        content: |
+          [connection]
+          id=Fortress-AP
+          type=wifi
+          interface-name=wlan0
+          autoconnect=true
+
+          [wifi]
+          ssid={{ gen_ssid }}
+          mode=ap
+          band=bg
+          channel=0
+          cloned-mac-address=permanent
+          mac-address-randomization=never
+          powersave=0
+
+          [wifi-security]
+          key-mgmt=wpa-psk
+          proto=rsn
+          pairwise=ccmp
+          group=ccmp
+          pmf=1
+          psk={{ gen_wifi_psk }}
+
+          [ipv4]
+          method=manual
+          address1=10.42.0.1/24
+
+          [ipv6]
+          method=ignore
+      notify: Restart NetworkManager
+
+    - name: Install Networking Stack
+      apt:
+        name: [dnscrypt-proxy]
+        state: present
+    
+    - name: Deploy Global Stealth NM Configuration
+      ansible.builtin.copy:
+      dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [device-mac-randomization]
+          wifi.scan.rand-mac-address=yes
+      
+          [connection-mac-randomization]
+          ethernet.cloned-mac-address=random
+          wifi.cloned-mac-address=random
+          ipv4.dhcp-client-id=mac
+          ipv6.dhcp-duid-type=ll
+      
+          [main]
+          ipv4.dhcp-send-hostname=0
+          
+      notify: Restart NetworkManager
+
+    - name: Configure Dnscrypt-Proxy Socket (127.0.0.1:8053)
+      copy:
+        dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
+        content: "[Unit]\nDescription=dnscrypt socket\n[Socket]\nListenStream=\nListenDatagram=\nListenStream=127.0.0.1:8053\nListenDatagram=127.0.0.1:8053\n[Install]\nWantedBy=sockets.target"
+      notify: 
+        - Reload Systemd
+        - Restart Dnscrypt Socket
+        - Restart Dnscrypt Service
+
+    - name: Open Ports for Pi-hole v6 (DNS/DHCP/Web)
+      ansible.posix.firewalld:
+        zone: nm-shared
+        service: "{{ item }}"
+        permanent: true
+        state: enabled
+      loop: [dns, dhcp, http]
+
+    # --- PI-HOLE v6.0 CONFIGURATION ---
+    - name: Ensure Pi-hole config directory exists
+      ansible.builtin.file:
+        path: /etc/pihole
+        state: directory
+        mode: '0755'
+
+    - name: Deploy Pi-hole v6.0 Unified Config (TOML)
+      ansible.builtin.copy:
+        dest: /etc/pihole/pi-hole.toml
+        owner: pihole
+        group: pihole
+        mode: '0644'
+        content: |
+          [admin]
+          # Pi-hole v6 uses a hashed password or API token
+          # We'll set the initial password for your recovery
+          password = "{{ gen_pihole_pw }}" 
+
+          [dns]
+          # Point to your dnscrypt-proxy socket
+          upstreams = [ "127.0.0.1#8053" ]
+          domain = "fortress.local"
+
+          [dhcp]
+          enabled = true
+          interface = "wlan0"
+          # Your me-facing range
+          start = "10.42.0.10"
+          end = "10.42.0.50"
+          router = "10.42.0.1"
+          lease_duration = 24
+      notify: Restart NetworkManager
+  
+    - name: Run Pi-hole v6 unattended installer
+      ansible.builtin.shell:
+        cmd: curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
+        # The 'creates' check ensures it doesn't re-run every time you fix a minor bug
+        creates: /usr/local/bin/pihole
+      register: pihole_install_result
+
+    - name: Set Pi-hole Admin Password
+      shell: "pihole setpassword {{ gen_pihole_pw }}"
+
+    - name: Hijack Port 53 (DNS Redirect)
+      ansible.posix.firewalld:
+        zone: "{{ item }}"
+        rich_rule: 'rule family="ipv4" forward-port port="53" protocol="udp" to-port="53"'
+        permanent: true
+        state: enabled
+      loop: ['home', 'public']
+
+    # 5. TAILSCALE
+    - name: Install Tailscale
+      shell: curl -fsSL https://tailscale.com | sh
+      args: { creates: /usr/bin/tailscale }
+
+  handlers:
+    - name: Reload Firewalld
+      service:
+        name: firewalld
+        state: reloaded
+    - name: Reload Systemd
+      systemd:
+        daemon_reload: yes
+    - name: Restart Dnscrypt Socket
+      ansible.builtin.systemd:
+        name: dnscrypt-proxy.socket
+        state: restarted
+        daemon_reload: yes
+
+    - name: Restart Dnscrypt Service
+      ansible.builtin.service:
+        name: dnscrypt-proxy
+        state: restarted
+      # This ensures the socket is up before the service attempts to bind
+      listen: "Restart Dnscrypt" 
+
+    - name: Restart Pi-hole
+      service:
+        name: pihole-FTL
+        state: restarted
