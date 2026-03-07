@@ -435,4 +435,9 @@
       ansible.builtin.service:
         name: pihole-FTL
         state: restarted
+
+    - name: Restart Resolved
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: restarted
       # Pi-hole runs last so it can verify its upstreams (dnscrypt) are live.
