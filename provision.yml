@@ -465,9 +465,12 @@
       loop: ['home', 'public']
 
     # 5. TAILSCALE
-    - name: Install Tailscale
-      ansible.builtin.shell: curl -fsSL https://tailscale.com | sh
-      args: { creates: /usr/bin/tailscale }
+    - name: Install Tailscale via script
+      ansible.builtin.shell:
+        cmd: curl -fsSL https://tailscale.com | sh
+        # This 'executable' argument is the key fix
+        executable: /bin/bash
+        creates: /usr/bin/tailscale
 
   handlers:
     - name: Reload Firewalld
