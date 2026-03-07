@@ -18,7 +18,7 @@ echo -e "TEMP:      $(vcgencmd measure_temp | cut -d= -f2)"
 echo -e "\n\e[1;32m[ NETWORKING ]\e[0m"
 echo -e "wlan0 (LOCAL): $(nmcli -t -f IP4.ADDRESS dev show wlan0 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan0/address 2>/dev/null)]"
 echo -e "wlan1 (SCOUT): $(nmcli -t -f IP4.ADDRESS dev show wlan1 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan1/address 2>/dev/null)]"
-echo -e "eth0 (SCOUT):  $(nmcli -t -f IP4.ADDRESS dev show eth0 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/wlan1/address 2>/dev/null)]"
+echo -e "eth0 (SCOUT):  $(nmcli -t -f IP4.ADDRESS dev show eth0 2>/dev/null | cut -d: -f2 || echo 'DOWN') [$(cat /sys/class/net/eth0/address 2>/dev/null)]"
 
 echo -e "\n\e[1;32m[ PRIVACY ]\e[0m"
 echo -e "PI-HOLE v6:    $(systemctl is-active pihole-FTL)"
