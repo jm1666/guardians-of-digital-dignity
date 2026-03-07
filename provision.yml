@@ -235,6 +235,28 @@
         state: present
         update_cache: yes
 
+    - name: Reclaim and Lock DNS (Fortress vs Trixie)
+      become: true
+      ansible.builtin.shell:
+        cmd: |
+          if ! lsattr /etc/resolv.conf | cut -d' ' -f1 | grep -q 'i'; then
+            # 1. Break the symlink if it's there
+            rm -f /etc/resolv.conf
+            
+            # 2. Write the static Fortress entry
+            echo "nameserver 127.0.0.1" > /etc/resolv.conf
+            echo "options edns0 trust-ad" >> /etc/resolv.conf
+            
+            # 3. Lock it down
+            chattr +i /etc/resolv.conf
+            exit 0
+          else
+            exit 100
+          fi
+      register: resolv_locked
+      changed_when: resolv_locked.rc == 0
+      failed_when: resolv_status.rc != 0 and resolv_status.rc != 100
+
     - name: Ensure systemd-resolved config directory exists
       ansible.builtin.file:
         state: directory
