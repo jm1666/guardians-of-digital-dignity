@@ -267,6 +267,23 @@
       ansible.builtin.shell:
         cmd: "pihole setpassword {{ gen_pihole_pw }}"
 
+    - name: Programmatically add blocklists to Pi-hole v6
+      ansible.builtin.shell:
+        cmd: |
+          sqlite3 /etc/pihole/gravity.db "INSERT OR IGNORE INTO adlist (address, enabled, comment) VALUES ('{{ item.url }}', 1, '{{ item.comment }}');"
+      loop:
+        - { url: 'https://raw.githubusercontent.com/nextdns/piracy-blocklists/master/torrent-clients', comment: '' }
+        - { url: 'https://raw.githubusercontent.com/nextdns/piracy-blocklists/master/torrent-trackers', comment: '' }
+        - { url: 'https://raw.githubusercontent.com/nextdns/piracy-blocklists/master/torrent-websites', comment: '' } 
+        - { url: 'https://raw.githubusercontent.com/hoshsadiq/adblock-nocoin-list/master/hosts.txt', comment: '' } 
+        - { url: 'https://big.oisd.nl', comment: '' } 
+        - { url: 'https://paulgb.github.io/BarbBlock/blacklists/hosts-file.txt', comment: '' }
+      register: adlist_added
+
+    - name: Update Gravity (Rebuild blocklist database)
+      ansible.builtin.command: pihole -g
+      when: adlist_added.changed
+
     - name: Hijack Port 53 (DNS Redirect)
       ansible.posix.firewalld:
         zone: "{{ item }}"
