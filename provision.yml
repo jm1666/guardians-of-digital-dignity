@@ -284,28 +284,34 @@
         creates: /usr/bin/tailscale
 
   handlers:
-    - name: Reload Firewalld
-      service:
-        name: firewalld
-        state: reloaded
     - name: Reload Systemd
-      systemd:
+      ansible.builtin.systemd:
         daemon_reload: yes
+
+    - name: Reload Firewalld
+      ansible.builtin.shell: |
+        firewall-cmd --runtime-to-permanent
+        firewall-cmd --reload
+
+    - name: Restart NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
+
     - name: Restart Dnscrypt Socket
-      systemd:
+      ansible.builtin.systemd:
         name: dnscrypt-proxy.socket
         state: restarted
         daemon_reload: yes
+
     - name: Restart Dnscrypt Service
-      service:
+      ansible.builtin.service:
         name: dnscrypt-proxy
         state: restarted
-      listen: "Restart Dnscrypt" 
+      listen: "Restart Dnscrypt"
+
     - name: Restart Pi-hole
-      service:
+      ansible.builtin.service:
         name: pihole-FTL
         state: restarted
-    - name: Restart NetworkManager
-      service:
-        name: NetworkManager
-        state: restarted
+      # Pi-hole runs last so it can verify its upstreams (dnscrypt) are live.
