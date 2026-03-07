@@ -252,7 +252,11 @@
         owner: root
         group: root
         mode: '0644'
-      notify: Restart NetworkManager
+  
+    - name: Restart NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
 
     - name: Install systemd-resolved via Ansible
       ansible.builtin.apt:
@@ -362,6 +366,8 @@
         - { url: 'https://raw.githubusercontent.com/hoshsadiq/adblock-nocoin-list/master/hosts.txt', comment: '' } 
         - { url: 'https://big.oisd.nl', comment: '' } 
         - { url: 'https://paulgb.github.io/BarbBlock/blacklists/hosts-file.txt', comment: '' }
+      loop_control:
+        pause: 5
       register: adlist_added
 
     - name: Update Gravity (Rebuild blocklist database)
@@ -380,6 +386,7 @@
           - port: 53
             proto: "{{ item.1 }}"
             toport: 53
+            toaddr: 10.42.0.1
       with_nested:
         - ['nm-shared']
         - ['udp', 'tcp']
@@ -476,11 +483,6 @@
       ansible.builtin.shell: |
         firewall-cmd --runtime-to-permanent
         firewall-cmd --reload
-
-    - name: Restart NetworkManager
-      ansible.builtin.service:
-        name: NetworkManager
-        state: restarted
 
     - name: Restart Pi-hole
       ansible.builtin.service:
