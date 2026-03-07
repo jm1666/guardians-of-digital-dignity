@@ -12,6 +12,31 @@
       failed_when: ts_status.rc != 0
       # If this fails, the playbook stops here to prevent a lockout.
 
+    - name: Generate unique high-entropy sudo password
+      ansible.builtin.set_fact:
+        new_sudo_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits,symbols length=20') }}"
+
+    - name: Apply new password to fortress user
+      ansible.builtin.user:
+        name: fortress
+        password: "{{ new_sudo_pw | password_hash('sha512') }}"
+        update_password: always
+
+    - name: Remove NOPASSWD entry from cloud-init files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/sudoers.d/90-cloud-init-users
+        - /etc/sudoers.d/010_pi-nopasswd
+
+    - name: Enable Standard Sudo (Password Required)
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/fortress-hardened
+        mode: '0440'
+        # Allows 'fortress' to use sudo but REQUIRES the new password
+        content: "fortress ALL=(ALL) PASSWD: ALL"
+
     - name: Move eth0 from Trusted to Public (DROP) Zone
       ansible.builtin.shell: |
         firewall-cmd --permanent --zone=public --add-interface=eth0
@@ -32,6 +57,15 @@
           history -c
       register: shred_result
       failed_when: false # Don't crash if it was already deleted
+
+    - name: "DISPLAY NEW SUDO PASSWORD: SAVE THIS NOW"
+      ansible.builtin.debug:
+        msg: 
+          - "################################################"
+          - "FORTRESS SEALED. NEW SUDO PASSWORD FOR 'fortress':"
+          - "{{ new_sudo_pw }}"
+          - "################################################"
+          - "SUDO NOW REQUIRES THIS PASSWORD. SSH REMAINS KEY-ONLY."
 
     - name: Disable SSH Password Authentication
       ansible.builtin.lineinfile:
