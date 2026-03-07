@@ -313,19 +313,17 @@
     - name: Intercept Port 53 (DNS Redirect)
       become: true
       ansible.posix.firewalld:
-        zone: "{{ item }}"
+        zone: "{{ item.0 }}"
         permanent: true
         immediate: true
         state: enabled
         port_forward:
-          - port: 53
-            proto: udp
-            toport: 53
-          - port: 53
-            proto: tcp
-            toport: 53
-      loop:
-        - 'nm-shared'
+          port: 53
+          proto: "{{ item.1 }}"
+          toport: 53
+      with_nested:
+        - ['nm-shared']
+        - ['udp', 'tcp']
 
     - name: Create keyring directory
       ansible.builtin.file:
