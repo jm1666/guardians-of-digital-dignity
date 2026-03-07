@@ -1,0 +1,7 @@
+--- FORTRESS RECOVERY KEYSET ---
+TIMESTAMP: {{ ansible_date_time.iso8601 }}
+SSID:      {{ gen_ssid }}
+WIFI PSK:  {{ gen_wifi_psk }}
+PI-HOLE:   {{ gen_pihole_pw }}
+--------------------------------
+SECURE THESE AND DELETE THIS FILE BEFORE RUNNING 'SEAL'.
