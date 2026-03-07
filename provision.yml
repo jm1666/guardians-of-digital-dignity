@@ -43,19 +43,19 @@
         name: xrdp
         state: started
         enabled: yes
-
-   - name: Create Openbox config directory
+    
+    - name: Create Openbox config directory
       ansible.builtin.file:
-        path: /home/fortress_admin/.config/openbox
+        path: /home/fortress/.config/openbox
         state: directory
-        owner: fortress_admin
-        group: fortress_admin
+        owner: fortress
+        group: fortress
 
     - name: Configure Openbox Autostart (Launch tint2)
       ansible.builtin.copy:
-        dest: /home/fortress_admin/.config/openbox/autostart
-        owner: fortress_admin
-        group: fortress_admin
+        dest: /home/fortress/.config/openbox/autostart
+        owner: fortress
+        group: fortress
         mode: '0755'
         content: |
           # Start the tint2 panel in the background
