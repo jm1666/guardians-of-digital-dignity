@@ -3,6 +3,7 @@ id=Fortress-AP
 type=wifi
 interface-name=wlan0
 autoconnect=true
+zone=nm-shared
 
 [wifi]
 ssid={{ gen_ssid }}
