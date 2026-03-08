@@ -317,7 +317,7 @@
 
     - name: Deploy Pi-hole Config
       ansible.builtin.template:
-        src: files/pihole.j2
+        src: files/pihole.toml
         dest: /etc/pihole/pihole.toml
         owner: pihole
         group: pihole
