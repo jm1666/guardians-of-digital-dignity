@@ -1,7 +1,7 @@
 #cloud-config
 users:
   - name: fortress
-    groups: [sudo, video, input]
+    groups: [sudo, netdev, video, input]
     sudo: ALL=(ALL) NOPASSWD:ALL
     lock_passwd: true
     ssh_authorized_keys:
@@ -45,6 +45,16 @@ rpi:
 
 packages:
   - git
+  - chrony
+
+write_files:
+  - path: /etc/chrony/sources.d/bootstrap-nts.sources
+    content: |
+      pool time.cloudflare.com iburst nts
+
+runcmd:
+  - sed -i 's/^pool [0-9].debian.pool.ntp.org iburst/# &/' /etc/chrony/chrony.conf
+  - systemctl restart chronyd
 
 ansible:
   install_method: distro
