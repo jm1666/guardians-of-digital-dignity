@@ -85,7 +85,7 @@ write_files:
           touch "$FLAG_FILE"
           echo "System Provisioned. Flag planted."
       else
-          echo "System Provisioned went pear-shaped."
+          echo "System Provisioning went pear-shaped, please try again."
           exit 1
       fi
 
