@@ -37,16 +37,26 @@
   when: hostname_changed.changed
   notify: Reboot Required
 
-- name: initiation - Enable I2C and DS3231 RTC
-  ansible.builtin.lineinfile:
+- name: initiation - Disable Bluetooth
+  ansible.builtin.blockinfile:
     path: /boot/firmware/config.txt
-    line: "{{ item }}"
+    marker: "# {mark} ANSIBLE MANAGED Bluetooth"
+    insertafter: EOF
     state: present
-  loop:
-    - "dtparam=i2c_arm=on"
-    - "dtoverlay=i2c-rtc,ds3231"
+    block: |
+      dtoverlay=disable-bt
   notify: Reboot Required
-  when: not is_pi5
+
+- name: initiation - Enable I2C and DS3231 RTC
+  ansible.builtin.blockinfile:
+    path: /boot/firmware/config.txt
+    marker: "# {mark} ANSIBLE MANAGED I2C DS3231"
+    insertafter: EOF
+    state: present
+    block: |
+      dtparam=i2c_arm=on
+      dtoverlay=i2c-rtc,ds3231
+  notify: Reboot Required
 
 - name: initiation - Configure PWM Fan (Argon40 Mini Fan)
   ansible.builtin.blockinfile:
@@ -66,12 +76,10 @@
     insertafter: EOF
     state: present
     block: |
-      [pi5]
       dtparam=fan_temp0=45000,fan_temp0_speed=75,fan_temp0_hyst=5000
       dtparam=fan_temp1=55000,fan_temp1_speed=125,fan_temp1_hyst=5000
       dtparam=fan_temp2=65000,fan_temp2_speed=175,fan_temp2_hyst=5000
       dtparam=fan_temp3=75000,fan_temp3_speed=255,fan_temp3_hyst=5000
-      [all]
   notify: Reboot Required
   when: is_pi5
 
