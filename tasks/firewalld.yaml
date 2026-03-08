@@ -47,7 +47,7 @@
     firewall-cmd --permanent --zone=public --set-target=DROP
   notify: Reload FirewallD
   
-- name: firewalld - Open Ports for Pi-hole
+- name: firewalld - Open Ports for internal user
   ansible.posix.firewalld:
     zone: nm-shared
     service: "{{ item }}"
@@ -58,3 +58,4 @@
     - dns
     - dhcp
     - http
+    - rdp
