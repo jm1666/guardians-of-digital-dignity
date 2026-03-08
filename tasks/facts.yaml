@@ -1,9 +1,16 @@
+- name: facts - Identify the hardware
+  ansible.builtin.command: cat /proc/device-tree/model
+  register: rpi_model_raw
+  # Don't show 'changed' in the logs every time
+  changed_when: false
+
 - name: facts - Generate unique secrets
   ansible.builtin.set_fact:
     gen_wifi_psk: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') }}"
     gen_pihole_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=12') }}"
     gen_ssid: "Fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
     new_fortress_name: "fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_lowercase,digits length=6') }}"
+    is_pi5: "{{ 'Raspberry Pi 5' in rpi_model_raw.stdout }}"
 
 - name: facts - Create Recovery File
   ansible.builtin.template:
