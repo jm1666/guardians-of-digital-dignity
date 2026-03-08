@@ -90,5 +90,7 @@
       - gnupg
       - firewalld
       - python3-debian
+      - wireless-regdb
+      - iw
     state: present
     update_cache: yes
