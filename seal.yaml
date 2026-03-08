@@ -11,6 +11,17 @@
       changed_when: false
       failed_when: ts_status.rc != 0
       # If this fails, the playbook stops here to prevent a lockout.
+      
+    - name: Remove the temporary bootstrapper and service file
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/usr/local/bin/fortress-init.sh"
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
 
     - name: Generate unique high-entropy sudo password
       ansible.builtin.set_fact:
