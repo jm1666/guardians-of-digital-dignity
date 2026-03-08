@@ -1,11 +1,11 @@
-- name: Facts - Generate unique secrets
+- name: facts - Generate unique secrets
   ansible.builtin.set_fact:
     gen_wifi_psk: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') }}"
     gen_pihole_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=12') }}"
     gen_ssid: "Fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
     new_fortress_name: "fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_lowercase,digits length=6') }}"
 
-- name: Facts - Create Recovery File
+- name: facts - Create Recovery File
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/FORTRESS_RECOVERY.txt"
     dest: /home/fortress/FORTRESS_RECOVERY.txt
