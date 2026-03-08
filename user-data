@@ -55,7 +55,9 @@ write_files:
     permissions: '0755'
     content: |
       #!/bin/bash
+      LOG_FILE="/tmp/fortress-provision.log"
       FLAG_FILE="/var/lib/system-provisioned.flag"
+      SESSION_NAME="fortress_decor"
 
       if [[ $EUID -ne 0 ]]; then
          echo -e "\e[1;31m[!] ERROR: This script must be run with sudo.\e[0m" 
@@ -66,28 +68,32 @@ write_files:
           echo "System Provisioned, Ignoring."
           exit 0
       fi
+
+      tmux has-session -t "$SESSION_NAME" 2>/dev/null
+      if [ $? -eq 0 ]; then
+          echo "Script is already running ina tmux session"
+          exit 0
+      fi
+
       until ping -c 1 1.1.1.1; do sleep 5; done
       
       # 2. Fix the 'stale index' and get the tools
       DEBIAN_FRONTEND=noninteractive apt update -y
       DEBIAN_FRONTEND=noninteractive apt upgrade -y
 
-      apt install -y git chrony ansible
+      apt install -y git chrony ansible tmux
 
       sed -i 's/^pool [0-9].debian.pool.ntp.org iburst/# &/' /etc/chrony/chrony.conf
 
       systemctl restart chronyd
+
+      tmux new-session -d -s "$SESSION_NAME" " ( \
+          ansible-pull -U '{redacted}' provision.yaml && \
+          touch $FLAG_FILE && \
+          echo '--- Renovations Complete: Flag Planted ---' \
+      ) 2>&1 | tee -a $LOG_FILE; bash"
       
-      ansible-pull -U "https://github.com/jm1666/guardians-of-digital-dignity.git" provision.yaml 2>&1 | tee -a /tmp/fortress-provision.log
-      
-      # 5. Drop the 'Mission Accomplished' flag
-      if [ ${PIPESTATUS[0]} -eq 0 ]; then
-          touch "$FLAG_FILE"
-          echo "System Provisioned. Flag planted."
-      else
-          echo "System Provisioning went pear-shaped, please try again."
-          exit 1
-      fi
+      echo "Crew is in the tmux lounge. To peek at the decor: sudo tmux attach -t $SESSION_NAME"
 
 manage_resolv_conf: false
 keyboard:
