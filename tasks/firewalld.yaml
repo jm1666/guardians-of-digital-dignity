@@ -1,0 +1,73 @@
+- name: Ensure FirewallD is started and enabled
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: yes
+  
+- name: Configure TTL/HL Mangling
+  ansible.builtin.shell:
+    cmd: |
+      firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 65
+      firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 65
+  notify: Reload FirewallD
+
+- name: Create Hotspot to Public Policy (Scout)
+  ansible.builtin.shell: |
+    cmd: |
+      firewall-cmd --permanent --new-policy hotspotToPublic
+      firewall-cmd --permanent --policy hotspotToPublic --add-ingress-zone nm-shared
+      firewall-cmd --permanent --policy hotspotToPublic --add-egress-zone public
+      firewall-cmd --permanent --policy hotspotToPublic --set-priority -1
+      firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
+      firewall-cmd --permanent --policy hotspotToPublic --add-masquerade
+  notify: Reload FirewallD
+
+- name: Create Hotspot to VPN Policy (Tailscale)
+  ansible.builtin.shell: |
+    cmd: |
+      firewall-cmd --permanent --new-policy hotspotToVPN
+      firewall-cmd --permanent --policy hotspotToVPN --add-ingress-zone nm-shared
+      firewall-cmd --permanent --policy hotspotToVPN --add-egress-zone work
+      firewall-cmd --permanent --policy hotspotToVPN --set-priority -10
+      firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
+      firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
+  notify: Reload FirewallD
+
+- name: Zone Assignment
+  ansible.posix.firewalld:
+    interface: "{{ item.iface }}"
+    zone: "{{ item.zone }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  loop:
+    - { iface: 'eth0', zone: 'trusted' }
+    - { iface: 'wlan1', zone: 'public' }
+    - { iface: 'wlan0', zone: 'nm-shared' }
+  notify: Reload FirewallD
+
+- name: Close Public Zone Services
+  ansible.posix.firewalld:
+    zone: public
+    service: "{{ item }}"
+    permanent: true
+    state: disabled
+  loop: [ssh, dhcpv6-client]
+  notify: Reload FirewallD
+
+- name: Set Public Zone to DROP
+  ansible.builtin.shell: |
+    firewall-cmd --permanent --zone=public --set-target=DROP
+  notify: Reload FirewallD
+  
+- name: Open Ports for Pi-hole
+  ansible.posix.firewalld:
+    zone: nm-shared
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - dns
+    - dhcp
+    - http
