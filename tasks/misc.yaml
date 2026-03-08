@@ -20,11 +20,11 @@
     regexp: '^#?Storage='
     line: 'Storage=volatile'
   notify: Restart journald
-  when: "'Raspberry Pi 5' not in ansible_facts['model']"
+  when: not is_pi5
 
 - name: Misc - Ensure /var/log/journal is removed (Force Volatile)
   ansible.builtin.file:
     path: /var/log/journal
     state: absent
   notify: Restart journald
-  when: "'Raspberry Pi 5' not in ansible_facts['model']"
+  when: not is_pi5
