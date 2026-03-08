@@ -21,7 +21,7 @@
 
 - name: initiation - Set the system hostname
   ansible.builtin.hostname:
-    name: initiation - "{{ new_fortress_name }}"
+    name: "{{ new_fortress_name }}"
   register: hostname_changed
 
 - name: initiation - Initiation - Update /etc/hosts for the new hostname
