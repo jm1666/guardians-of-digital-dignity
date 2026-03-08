@@ -73,6 +73,7 @@
           - curl
           - gnupg
           - firewalld
+          - python3-debian
         state: present
         update_cache: yes
 
