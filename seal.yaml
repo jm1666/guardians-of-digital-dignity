@@ -32,7 +32,7 @@
     - name: Apply new password to fortress user
       ansible.builtin.user:
         name: fortress
-        password: "{{ new_sudo_pw | password_hash('yescrypt') }}"
+        password: "{{ new_sudo_pw | password_hash('sha512') }}"
         update_password: always
 
     - name: Remove NOPASSWD entry from cloud-init files
