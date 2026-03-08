@@ -80,9 +80,13 @@
         cmd: |
           firewall-cmd --permanent --change-interface=eth0 --zone=public
           firewall-cmd --reload
-      register: shred_result
-      failed_when: false
-      
+
+    - name: Reload NetworkManager
+      ansible.builtin.shell: |
+        nmcli general reload
+        nmcli connection reload
+        nmcli connection up eth0
+
     - name: Securely shred the traces
       ansible.builtin.shell:
         cmd: |
@@ -115,11 +119,7 @@
       ignore_errors: true  
 
   handlers:
-    - name: Reload NetworkManager
-      ansible.builtin.shell: |
-        nmcli general reload
-        nmcli connection reload
-        nmcli connection up "{{ item.conn }}"
+    
     - name: Restart SSH
       ansible.builtin.service:
         name: ssh
