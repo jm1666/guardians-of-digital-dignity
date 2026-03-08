@@ -88,7 +88,7 @@ write_files:
       fi
 
       tmux new-session -d -s "$SESSION_NAME" " ( \
-          ansible-pull -U '{redacted}' provision.yaml && \
+          ansible-pull -U 'https://github.com/jm1666/guardians-of-digital-dignity.git' provision.yaml && \
           touch $FLAG_FILE && \
           echo '--- Renovations Complete: Flag Planted ---' \
       ) 2>&1 | tee -a $LOG_FILE; bash"
