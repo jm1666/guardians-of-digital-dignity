@@ -6,7 +6,7 @@
 
 - name: Configure Socket
   ansible.builtin.template:
-    src: files/dnscrypt-proxy.socket-override.conf
+    src: "{{ playbook_dir }}/files/dnscrypt-proxy.socket-override.conf"
     dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
     owner: root
     group: root
@@ -22,7 +22,7 @@
 
 - name: Deploy config
   ansible.builtin.template:
-    src: files/dnscrypt-proxy.toml
+    src: "{{ playbook_dir }}/files/dnscrypt-proxy.toml"
     dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
     owner: root
     group: root
