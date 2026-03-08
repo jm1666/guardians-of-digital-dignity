@@ -64,13 +64,16 @@
         validate: '/usr/sbin/visudo -cf %s'
 
     - name: Move eth0 from Trusted to Public (DROP) Zone
-      ansible.posix.firewalld:
-        interface: eth0
-        zone: public
-        state: enabled
-        permanent: true
-        immediate: true      
-      notify: Reload Firewalld
+      ansible.builtin.ini_file:
+        path: "/etc/NetworkManager/system-connections/{{ item.conn }}.nmconnection"
+        section: connection
+        option: zone
+        value: "{{ item.zone }}"
+        mode: '0600'
+        no_extra_spaces: true
+      loop:
+        - { conn: 'eth0', zone: 'public' }
+      notify: Reload NetworkManager
 
     - name: Securely shred the traces
       ansible.builtin.shell:
@@ -104,11 +107,10 @@
       ignore_errors: true  
 
   handlers:
-    - name: Reload Firewalld
+    - name: Reload NetworkManager
       ansible.builtin.shell: |
-        firewall-cmd --runtime-to-permanent
-        firewall-cmd --reload
-
+        nmcli connection reload
+        nmcli connection up "{{ item.conn }}"
     - name: Restart SSH
       ansible.builtin.service:
         name: ssh
