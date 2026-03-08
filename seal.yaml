@@ -35,6 +35,19 @@
         password: "{{ new_sudo_pw | password_hash('sha512') }}"
         update_password: always
 
+    - name: Show new password to fortress user
+      ansible.builtin.debug:
+        msg: 
+          - "################################################"
+          - "FORTRESS SEALED. NEW SUDO PASSWORD FOR 'fortress':"
+          - "{{ new_sudo_pw }}"
+          - "################################################"
+          - "SUDO NOW REQUIRES THIS PASSWORD. SSH REMAINS KEY-ONLY."
+
+    - name: Confirm new password is saved
+      ansible.builtin.pause:
+          prompt: "Have you got the password sorted? Press ENTER to disable Bypass Mode (Sudoers)..."
+
     - name: Remove NOPASSWD entry from cloud-init files
       ansible.builtin.file:
         path: "{{ item }}"
@@ -47,13 +60,16 @@
       ansible.builtin.copy:
         dest: /etc/sudoers.d/fortress-hardened
         mode: '0440'
-        # Allows 'fortress' to use sudo but REQUIRES the new password
-        content: "fortress ALL=(ALL) PASSWD: ALL"
+        content: "fortress ALL=(ALL:ALL) ALL"
+        validate: '/usr/sbin/visudo -cf %s'
 
     - name: Move eth0 from Trusted to Public (DROP) Zone
-      ansible.builtin.shell: |
-        firewall-cmd --permanent --zone=public --add-interface=eth0
-        firewall-cmd --permanent --zone=trusted --remove-interface=eth0
+      ansible.posix.firewalld:
+        interface: eth0
+        zone: public
+        state: enabled
+        permanent: true
+        immediate: true      
       notify: Reload Firewalld
 
     - name: Securely shred the traces
@@ -71,15 +87,6 @@
       register: shred_result
       failed_when: false # Don't crash if it was already deleted
 
-    - name: "DISPLAY NEW SUDO PASSWORD: SAVE THIS NOW"
-      ansible.builtin.debug:
-        msg: 
-          - "################################################"
-          - "FORTRESS SEALED. NEW SUDO PASSWORD FOR 'fortress':"
-          - "{{ new_sudo_pw }}"
-          - "################################################"
-          - "SUDO NOW REQUIRES THIS PASSWORD. SSH REMAINS KEY-ONLY."
-
     - name: Disable SSH Password Authentication
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
@@ -93,6 +100,7 @@
         state: absent
       loop:
         - "/root/.ansible"
+        - "/home/fortress/.ansible"
       ignore_errors: true  
 
   handlers:
