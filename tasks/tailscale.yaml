@@ -1,16 +1,16 @@
-- name: Create keyring directory
+- name: tailscale - Create keyring directory
   ansible.builtin.file:
     path: /usr/share/keyrings
     state: directory
     mode: '0755'
 
-- name: Add GPG key
+- name: tailscale - Add GPG key
   ansible.builtin.get_url:
     url: "https://pkgs.tailscale.com/stable/debian/{{ ansible_distribution_release }}.noarmor.gpg"
     dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
     mode: '0644'
 
-- name: Add Repository
+- name: tailscale - Add Repository
   ansible.builtin.deb822_repository:
     name: tailscale
     types: deb
@@ -20,19 +20,19 @@
     signed_by: /usr/share/keyrings/tailscale-archive-keyring.gpg
     state: present
 
-- name: Install
+- name: tailscale - Install
   ansible.builtin.apt:
     name: tailscale
     state: present
     update_cache: true
 
-- name: Ensure service is enabled
+- name: tailscale - Ensure service is enabled
   ansible.builtin.systemd:
     name: tailscaled
     state: started
     enabled: true
 
-- name: Configure FirewallD for Tailscale
+- name: tailscale - Configure FirewallD for Tailscale
   ansible.posix.firewalld:
     interface: "{{ item.iface }}"
     zone: "{{ item.zone }}"
