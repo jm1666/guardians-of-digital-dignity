@@ -38,7 +38,7 @@ write_files:
     permissions: '0755'
     content: |
       #!/bin/bash
-      FLAG_FILE="/var/lib/fortress/provisioned.flag"
+      FLAG_FILE="/var/lib/system-provisioned.flag"
       INIT_SCRIPT="/usr/local/bin/fortress-init.sh"
 
       if [ ! -f "$FLAG_FILE" ]; then
