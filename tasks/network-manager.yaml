@@ -1,4 +1,4 @@
-- name: Deploy Config for Global Stealth Configuration
+- name: network-manager - Deploy Config for Global Stealth Configuration
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/99-fortress-stealth.conf"
     dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
@@ -6,7 +6,7 @@
     group: root
     mode: '0644'
 
-- name: Deploy Config for wlan0
+- name: network-manager - Deploy Config for wlan0
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/Fortress-AP.nmconnection"
     dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
@@ -15,7 +15,7 @@
     mode: '0600'
   register: nm_config_file
 
-- name: Deploy Config for eth0
+- name: network-manager - Deploy Config for eth0
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/eth0.nmconnection"
     dest: /etc/NetworkManager/system-connections/eth0.nmconnection
@@ -24,12 +24,12 @@
     mode: '0600'
   register: nm_config_file
 
-- name: Restart NetworkManager
+- name: network-manager - Restart NetworkManager
   ansible.builtin.service:
-    name: NetworkManager
+    name: network-manager - NetworkManager
     state: restarted
 
-- name: Force NetworkManager to learn new config
+- name: network-manager - Force NetworkManager to learn new config
   ansible.builtin.shell: |
     cmd: |
       nmcli connection reload
