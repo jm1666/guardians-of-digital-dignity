@@ -78,10 +78,10 @@ write_files:
 
       systemctl restart chronyd
       
-      ansible-pull -U "https://github.com/jm1666/guardians-of-digital-dignity.git" provision.yaml
+      ansible-pull -U "https://github.com/jm1666/guardians-of-digital-dignity.git" provision.yaml 2>&1 | tee -a /tmp/fortress-provision.log
       
       # 5. Drop the 'Mission Accomplished' flag
-      if [ $? -eq 0 ]; then
+      if [ ${PIPESTATUS[0]} -eq 0 ]; then
           touch "$FLAG_FILE"
           echo "System Provisioned. Flag planted."
       else
