@@ -227,6 +227,14 @@
         owner: root
         group: root
         mode: '0644'
+    
+    - name: Ensure Dnscrypt-Proxy config directory exists
+      ansible.builtin.file:
+        state: directory
+        path: /etc/dnscrypt-proxy
+        owner: root
+        group: root
+        mode: "0755"
 
     - name: Configure Dnscrypt-Proxy
       ansible.builtin.template:
