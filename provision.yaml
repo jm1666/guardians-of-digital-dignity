@@ -142,7 +142,7 @@
         - { iface: 'wlan1', zone: 'public' }
         - { iface: 'eth0', zone: 'trusted' }
 
-    - name: Initial Configuration for FirewallD: Set Public Zone to DROP
+    - name: Initial Configuration for FirewallD - Set Public Zone to DROP
       ansible.builtin.shell: |
         firewall-cmd --permanent --zone=public --set-target=DROP
       notify: Reload FirewallD
