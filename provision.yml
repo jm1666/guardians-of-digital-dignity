@@ -17,7 +17,7 @@
         cmd: rfkill unblock wifi
       changed_when: false
 
-    - name: Persist RFKILL State (Systemd Override)
+    - name: Persist RFKILL State (SystemD Override)
       ansible.builtin.shell:
         cmd: |
           for f in /var/lib/systemd/rfkill/*:wlan; do 
@@ -76,13 +76,12 @@
         state: present
         update_cache: yes
 
-    - name: Ensure Firewalld is started and enabled
+    - name: Ensure FirewallD is started and enabled
       ansible.builtin.service:
         name: firewalld
         state: started
         enabled: yes
 
-    # --- GUI: OPENBOX + TINT2 + XRDP ---
     - name: Install Minimal GUI Stack
       ansible.builtin.apt:
         name:
@@ -132,8 +131,7 @@
         group: fortress
         mode: '0600'      
 
-    # 3. NETWORK: Zones & NAT
-    - name: Configure Firewalld (eth0=Trusted, wifi1=Public DROP)
+    - name: Initial Configuration for FirewallD
       ansible.posix.firewalld:
         interface: "{{ item.iface }}"
         zone: "{{ item.zone }}"
@@ -144,10 +142,10 @@
         - { iface: 'wlan1', zone: 'public' }
         - { iface: 'eth0', zone: 'trusted' }
 
-    - name: Set Public Zone to DROP
+    - name: Initial Configuration for FirewallD: Set Public Zone to DROP
       ansible.builtin.shell: |
         firewall-cmd --permanent --zone=public --set-target=DROP
-      notify: Reload Firewalld
+      notify: Reload FirewallD
 
     - name: Close Public Zone Services
       ansible.posix.firewalld:
@@ -156,16 +154,15 @@
         permanent: true
         state: disabled
       loop: [ssh, dhcpv6-client]
-      notify: Reload Firewalld
+      notify: Reload FirewallD
 
     - name: Configure TTL/HL Mangling
       ansible.builtin.shell:
         cmd: |
           firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 65
           firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 65
-      notify: Reload Firewalld
+      notify: Reload FirewallD
 
-    # --- FIREWALLD POLICIES (THE KILL-SWITCH) ---
     - name: Create Hotspot to Public Policy (Scout)
       ansible.builtin.shell: |
         cmd: |
@@ -175,7 +172,7 @@
           firewall-cmd --permanent --policy hotspotToPublic --set-priority -1
           firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
           firewall-cmd --permanent --policy hotspotToPublic --add-masquerade
-      notify: Reload Firewalld
+      notify: Reload FirewallD
 
     - name: Create Hotspot to VPN Policy (Tailscale)
       ansible.builtin.shell: |
@@ -186,10 +183,17 @@
           firewall-cmd --permanent --policy hotspotToVPN --set-priority -10
           firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
           firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
-      notify: Reload Firewalld
+      notify: Reload FirewallD
+    
+    - name: Deploy NetworkManager Connection for Global Stealth Configuration
+      ansible.builtin.template:
+        src: files/99-fortress-stealth.conf
+        dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
+        owner: root
+        group: root
+        mode: '0644'
 
-    # 4. AP & PRIVACY (DHCP Handover to Pi-hole)
-    - name: Deploy NM Connection for wlan0 (Management)
+    - name: Deploy NetworkManager Connection for wlan0 (Management)
       ansible.builtin.template:
         src: files/Fortress-AP.nmconnection
         dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
@@ -198,17 +202,17 @@
         mode: '0600'
       register: nm_config_file
 
-    - name: Force NM to learn new config
+    - name: Restart NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
+
+    - name: Force NetworkManager to learn new config
       ansible.builtin.shell: |
         cmd: |
           nmcli connection reload
           nmcli connection up Fortress-AP
       when: nm_config_file.changed
-
-    - name: Install Dnscrypt-Proxy
-      ansible.builtin.apt:
-        name: dnscrypt-proxy
-        state: present
     
     - name: Configure Dnscrypt-Proxy Socket - Create drop-in directory
       ansible.builtin.file:
@@ -216,15 +220,13 @@
         state: directory
         mode: '0755'
 
-    - name: Configure Dnscrypt-Proxy Socket via Drop-Ins
+    - name: Configure Dnscrypt-Proxy Socket
       ansible.builtin.template:
         src: files/dnscrypt-proxy.socket-override.conf
         dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
         owner: root
         group: root
         mode: '0644'
-      notify: 
-        - Reload Systemd
 
     - name: Configure Dnscrypt-Proxy
       ansible.builtin.template:
@@ -234,28 +236,11 @@
         group: root
         mode: '0644'
 
-    - name: Restart Dnscrypt-Proxy Socket
-      ansible.builtin.systemd:
-        name: dnscrypt-proxy.socket
-        state: restarted
-
-    - name: Restart Dnscrypt-Proxy Service
-      ansible.builtin.service:
+    - name: Install Dnscrypt-Proxy
+      ansible.builtin.apt:
         name: dnscrypt-proxy
-        state: restarted
-    
-    - name: Deploy Global Stealth NM Configuration
-      ansible.builtin.template:
-        src: files/99-fortress-stealth.conf
-        dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
-        owner: root
-        group: root
-        mode: '0644'
-  
-    - name: Restart NetworkManager
-      ansible.builtin.service:
-        name: NetworkManager
-        state: restarted
+        state: present
+        dpkg_options: 'force-confold,force-confdef'
 
     - name: Install systemd-resolved via Ansible
       ansible.builtin.apt:
@@ -270,7 +255,7 @@
         group: root
         mode: "0755"
 
-    - name: Neutralize systemd-resolved stub listener
+    - name: Neutralise systemd-resolved stub listener
       ansible.builtin.template:
         src: files/fortress-no-stub.conf
         dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
@@ -283,8 +268,7 @@
         name: systemd-resolved
         state: restarted
 
-    # 3. NETWORK: Zones & NAT
-    - name: Configure Firewalld (wlan0 for user side)
+    - name: Configure FirewallD (wlan0 for user side)
       ansible.posix.firewalld:
         interface: "{{ item.iface }}"
         zone: "{{ item.zone }}"
@@ -333,7 +317,7 @@
 
     - name: Deploy Pi-hole Config
       ansible.builtin.template:
-        src: files/pihole.toml
+        src: files/pihole.j2
         dest: /etc/pihole/pihole.toml
         owner: pihole
         group: pihole
@@ -421,10 +405,14 @@
         mode: '0644'
 
     - name: Add Tailscale repository
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian {{ ansible_distribution_release }} main"
+      ansible.builtin.deb822_repository:
+        name: tailscale
+        types: deb
+        uris: https://pkgs.tailscale.com/stable/debian
+        suites: "{{ ansible_distribution_release }}"
+        components: main
+        signed_by: /usr/share/keyrings/tailscale-archive-keyring.gpg
         state: present
-        filename: tailscale
 
     - name: Install Tailscale package
       ansible.builtin.apt:
@@ -437,6 +425,15 @@
         name: tailscaled
         state: started
         enabled: true
+    
+    - name: Configure FirewallD for Tailscale
+      ansible.posix.firewalld:
+        interface: "{{ item.iface }}"
+        zone: "{{ item.zone }}"
+        state: enabled
+        permanent: true
+      loop:
+        - { iface: 'tailscale0', zone: 'work' }
 
     - name: Apply Fortress Kernel Hardening
       ansible.posix.sysctl:
@@ -456,7 +453,6 @@
         - { name: 'net.ipv4.conf.all.rp_filter', value: '1' }
         - { name: 'net.ipv4.conf.default.rp_filter', value: '1' }
         
-    # --- TACTICAL LOGON: WARNING + SITREP ---
     - name: Deploy System Report on Login
       ansible.builtin.template:
         src: files/z99-fortress-sitrep.sh
@@ -487,14 +483,12 @@
       notify: Restart journald
 
   handlers:
-    - name: Reload Systemd
+    - name: Reload SystemD
       ansible.builtin.systemd:
         daemon_reload: yes
 
-    - name: Reload Firewalld
-      ansible.builtin.shell: |
-        firewall-cmd --runtime-to-permanent
-        firewall-cmd --reload
+    - name: Reload FirewallD
+      ansible.builtin.command: firewall-cmd --reload
 
     - name: Restart Pi-hole
       ansible.builtin.service:
