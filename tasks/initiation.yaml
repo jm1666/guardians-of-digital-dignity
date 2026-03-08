@@ -1,0 +1,86 @@
+- name: Unblock WiFi Radio
+  ansible.builtin.shell:
+    cmd: rfkill unblock wifi
+  changed_when: false
+
+- name: Persist RFKILL State (SystemD Override)
+  ansible.builtin.shell:
+    cmd: |
+      for f in /var/lib/systemd/rfkill/*:wlan; do 
+        if [ -f "$f" ]; then
+          echo 0 > "$f"
+        fi
+      done
+  register: rfkill_persist
+  changed_when: "rfkill_persist.rc == 0"
+
+- name: Ensure WiFi is enabled in NetworkManager
+  ansible.builtin.shell:
+    cmd: nmcli radio wifi on
+  changed_when: false
+
+- name: Set the system hostname
+  ansible.builtin.hostname:
+    name: "{{ new_fortress_name }}"
+  register: hostname_changed
+
+- name: Initiation - Update /etc/hosts for the new hostname
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: "127.0.1.1 {{ new_fortress_name }}"
+    state: present
+
+- name: Update with new identity
+  ansible.builtin.debug:
+    msg: "Fortress has been renamed to {{ new_fortress_name }}. Reboot required for full effect."
+  when: hostname_changed.changed
+  notify: Reboot Required
+
+- name: Enable I2C and DS3231 RTC
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    line: "{{ item }}"
+    state: present
+  loop:
+    - "dtparam=i2c_arm=on"
+    - "dtoverlay=i2c-rtc,ds3231"
+  notify: Reboot Required
+  when: "'Raspberry Pi 5' not in ansible_facts['model']"
+
+- name: Configure PWM Fan (Argon40 Mini Fan)
+  ansible.builtin.blockinfile:
+    path: /boot/firmware/config.txt
+    marker: "# {mark} ANSIBLE MANAGED Argon40 FAN"
+    insertafter: EOF
+    state: present
+    block: |
+      dtoverlay=pwm-gpio-fan,fan_gpio=18,fan_temp0=45000,fan_temp0_hyst=5000
+  notify: Reboot Required
+  when: "'Raspberry Pi 5' not in ansible_facts['model']"
+
+- name: Configure PWM Fan Curve (RasPi 5)
+  ansible.builtin.blockinfile:
+    path: /boot/firmware/config.txt
+    marker: "# {mark} ANSIBLE MANAGED PI5 FAN CURVE"
+    insertafter: EOF
+    state: present
+    block: |
+      [pi5]
+      dtparam=fan_temp0=45000,fan_temp0_speed=75,fan_temp0_hyst=5000
+      dtparam=fan_temp1=55000,fan_temp1_speed=125,fan_temp1_hyst=5000
+      dtparam=fan_temp2=65000,fan_temp2_speed=175,fan_temp2_hyst=5000
+      dtparam=fan_temp3=75000,fan_temp3_speed=255,fan_temp3_hyst=5000
+      [all]
+  notify: Reboot Required
+  when: "'Raspberry Pi 5' in ansible_facts['model']"
+
+- name: Initiation - Install basic dependencies
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - firewalld
+      - python3-debian
+    state: present
+    update_cache: yes
