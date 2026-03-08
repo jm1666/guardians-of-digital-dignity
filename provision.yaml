@@ -3,6 +3,7 @@
   hosts: localhost
   connection: local
   become: true
+  gather_facts: true
 
   tasks:
     - name: Facts
