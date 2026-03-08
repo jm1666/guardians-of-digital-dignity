@@ -112,18 +112,8 @@
         regexp: '^#?PasswordAuthentication'
         line: 'PasswordAuthentication no'
       notify: Restart SSH
-      
-    - name: Final Cleanup
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "/root/.ansible"
-        - "/home/fortress/.ansible"
-      ignore_errors: true  
 
   handlers:
-    
     - name: Restart SSH
       ansible.builtin.service:
         name: ssh
