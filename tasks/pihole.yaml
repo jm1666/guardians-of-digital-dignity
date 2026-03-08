@@ -1,0 +1,99 @@
+- name: Create group
+  ansible.builtin.group:
+    name: pihole
+    state: present
+
+- name: Create user
+  ansible.builtin.user:
+    name: pihole
+    home: "/opt/pihole"
+    shell: "/usr/sbin/nologin"
+    comment: "PiHole"
+    group: pihole
+    password: "*"
+    state: present
+    remove: true
+    force: true
+
+- name: Ensure config directory exists
+  ansible.builtin.file:
+    state: directory
+    path: /etc/pihole
+    owner: pihole
+    group: pihole
+    mode: "0775"
+
+- name: Deploy config
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/files/pihole.toml"
+    dest: /etc/pihole/pihole.toml
+    owner: pihole
+    group: pihole
+    mode: '0644'
+
+- name: Run installer
+  ansible.builtin.shell:
+    cmd: curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
+    creates: /etc/systemd/system/pihole-FTL.service
+  register: pihole_install_result
+
+- name: Set Admin Password
+  ansible.builtin.shell:
+    cmd: "pihole setpassword {{ gen_pihole_pw }}"
+
+- name: Install SQLite3
+  ansible.builtin.apt:
+    name: sqlite3
+    state: present
+
+- name: Add blocklists
+  ansible.builtin.shell:
+    cmd: |
+      sqlite3 /etc/pihole/gravity.db "INSERT OR IGNORE INTO adlist (address, enabled, comment) VALUES ('{{ item.url }}', 1, '{{ item.comment }}');"
+  loop:
+    - { url: 'https://raw.githubusercontent.com/nextdns/piracy-blocklists/master/torrent-clients', comment: '' }
+    - { url: 'https://raw.githubusercontent.com/nextdns/piracy-blocklists/master/torrent-trackers', comment: '' }
+    - { url: 'https://raw.githubusercontent.com/nextdns/piracy-blocklists/master/torrent-websites', comment: '' } 
+    - { url: 'https://raw.githubusercontent.com/hoshsadiq/adblock-nocoin-list/master/hosts.txt', comment: '' } 
+    - { url: 'https://big.oisd.nl', comment: '' } 
+    - { url: 'https://paulgb.github.io/BarbBlock/blacklists/hosts-file.txt', comment: '' }
+  loop_control:
+    pause: 5
+  register: adlist_added
+
+- name:  Update Gravity (Rebuild blocklist database)
+  ansible.builtin.command: pihole -g
+  when: adlist_added.changed
+
+- name: Intercept Port 53 (DNS Redirect)
+  ansible.posix.firewalld:
+    zone: "{{ item.0 }}"
+    permanent: true
+    immediate: true
+    state: enabled
+    # Force a list of one dictionary per iteration
+    port_forward:
+      - port: 53
+        proto: "{{ item.1 }}"
+        toport: 53
+        toaddr: 10.42.0.1
+  with_nested:
+    - ['nm-shared']
+    - ['udp', 'tcp']
+
+- name: Check if resolv.conf is already locked
+  ansible.builtin.shell:
+    cmd: |
+      lsattr /etc/resolv.conf
+  register: resolv_attr
+  changed_when: false
+  failed_when: false
+
+- name: Reclaim and Lock DNS
+  when: "'i' not in resolv_attr.stdout"
+  ansible.builtin.shell:
+    cmd: |
+      rm -f /etc/resolv.conf
+      echo "nameserver 127.0.0.1" > /etc/resolv.conf
+      echo "options edns0 trust-ad" >> /etc/resolv.conf
+      chattr +i /etc/resolv.conf
