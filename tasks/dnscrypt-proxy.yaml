@@ -30,12 +30,12 @@
 
 - name: dnscrypt-proxy - Install
   ansible.builtin.apt:
-    name: dnscrypt-proxy - dnscrypt-proxy
+    name: dnscrypt-proxy
     state: present
     dpkg_options: 'force-confold,force-confdef'
 
 - name: dnscrypt-proxy - Disable resolvconf takeover
   ansible.builtin.service:
-    name: dnscrypt-proxy - dnscrypt-proxy-resolvconf
+    name: dnscrypt-proxy-resolvconf
     state: stopped
     enabled: false
