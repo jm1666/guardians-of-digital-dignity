@@ -75,7 +75,7 @@
   notify: Reboot Required
   when: "'Raspberry Pi 5' in ansible_facts['model']"
 
-- name: initiation - Initiation - Install basic dependencies
+- name: initiation - Install basic dependencies
   ansible.builtin.apt:
     name:
       - curl
