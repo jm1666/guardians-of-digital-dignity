@@ -1,0 +1,16 @@
+[connection]
+id=eth0
+type=ethernet
+interface-name=eth0
+autoconnect=true
+
+[ethernet]
+cloned-mac-address=random
+mac-address-randomization=never
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+addr-gen-mode=stable-privacy
