@@ -33,19 +33,6 @@
       firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
   notify: Reload FirewallD
 
-- name: firewalld - Zone Assignment
-  ansible.posix.firewalld:
-    interface: "{{ item.iface }}"
-    zone: "{{ item.zone }}"
-    state: enabled
-    permanent: true
-    immediate: true
-  loop:
-    - { iface: 'eth0', zone: 'trusted' }
-    - { iface: 'wlan1', zone: 'public' }
-    - { iface: 'wlan0', zone: 'nm-shared' }
-  notify: Reload FirewallD
-
 - name: firewalld - Close Public Zone Services
   ansible.posix.firewalld:
     zone: public
