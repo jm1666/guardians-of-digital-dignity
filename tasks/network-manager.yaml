@@ -26,7 +26,7 @@
 
 - name: network-manager - Restart NetworkManager
   ansible.builtin.service:
-    name: network-manager - NetworkManager
+    name: NetworkManager
     state: restarted
 
 - name: network-manager - Force NetworkManager to learn new config
