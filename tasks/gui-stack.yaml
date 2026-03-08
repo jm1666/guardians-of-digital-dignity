@@ -19,7 +19,7 @@
 
 - name: gui-stack - Ensure Service is running
   ansible.builtin.service:
-    name: gui-stack - xrdp
+    name: xrdp
     state: started
     enabled: yes
 
