@@ -86,6 +86,14 @@
         regexp: '^#?PasswordAuthentication'
         line: 'PasswordAuthentication no'
       notify: Restart SSH
+      
+    - name: Final Cleanup
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/root/.ansible"
+      ignore_errors: true  
 
   handlers:
     - name: Reload Firewalld
