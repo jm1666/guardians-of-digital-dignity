@@ -61,6 +61,6 @@ ansible:
   package_name: ansible
   pull:
     url: "https://github.com/jm1666/guardians-of-digital-dignity.git"
-    playbook_name: "provision.yml"
+    playbook_name: "provision.yaml"
 
 
