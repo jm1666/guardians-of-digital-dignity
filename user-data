@@ -29,6 +29,7 @@ write_files:
       Suites: trixie
       Components: main
       Signed-By: /usr/share/keyrings/raspberrypi-archive-keyring.pgp
+
   - path: /etc/chrony/sources.d/bootstrap-nts.sources
     content: |
       pool time.cloudflare.com iburst nts
@@ -46,19 +47,13 @@ rpi:
     serial: true
     i2c: true
 
-packages:
-  - git
-  - chrony
-
 runcmd:
+  - until ping -c 1 1.1.1.1; do sleep 5; done
+  - DEBIAN_FRONTEND=noninteractive apt update -y
+  - DEBIAN_FRONTEND=noninteractive apt upgrade -y
+  - apt install -y git chrony ansible
   - sed -i 's/^pool [0-9].debian.pool.ntp.org iburst/# &/' /etc/chrony/chrony.conf
   - systemctl restart chronyd
-
-ansible:
-  install_method: distro
-  package_name: ansible
-  pull:
-    url: "https://github.com/jm1666/guardians-of-digital-dignity.git"
-    playbook_name: "provision.yaml"
+  - ansible-pull -U "https://github.com/jm1666/guardians-of-digital-dignity.git" provision.yaml
 
 
