@@ -48,6 +48,9 @@
         - { name: 'net.ipv4.conf.all.rp_filter', value: '1' }
         - { name: 'net.ipv4.conf.default.rp_filter', value: '1' }
 
+    - name: Tailscale
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/tailscale.yaml" 
+
     - name: Misc
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/misc.yaml" 
   
