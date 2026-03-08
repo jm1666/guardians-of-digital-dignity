@@ -250,6 +250,13 @@
         state: present
         dpkg_options: 'force-confold,force-confdef'
 
+    - name: Disable Dnscrypt-Proxy resolvconf takeover
+      ansible.builtin.service:
+        name: dnscrypt-proxy-resolvconf
+        state: stopped
+        enabled: false
+      become: true
+
     - name: Install systemd-resolved via Ansible
       ansible.builtin.apt:
         name: systemd-resolved
