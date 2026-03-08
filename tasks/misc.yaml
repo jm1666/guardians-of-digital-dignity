@@ -1,0 +1,30 @@
+- name: Misc - Deploy System Report on Login
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/files/z99-fortress-sitrep.sh"
+    dest: /etc/profile.d/z99-fortress-sitrep.sh
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Misc - Deploy fortress-mode toggle script
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/files/fortress-toggle.sh"
+    dest: /usr/local/bin/fortress-toggle
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Misc - Configure journald to use RAM only
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: '^#?Storage='
+    line: 'Storage=volatile'
+  notify: Restart journald
+  when: "'Raspberry Pi 5' not in ansible_facts['model']"
+
+- name: Misc - Ensure /var/log/journal is removed (Force Volatile)
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: absent
+  notify: Restart journald
+  when: "'Raspberry Pi 5' not in ansible_facts['model']"
