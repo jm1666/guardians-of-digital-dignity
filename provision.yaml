@@ -24,10 +24,10 @@
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/dnscrypt-proxy.yaml"
 
     - name: systemd-resolved
-    ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/systemd-resolved.yaml"
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/systemd-resolved.yaml"
       
     - name: Pi-Hole
-    ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/pihole.yaml"    
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/pihole.yaml"    
 
     - name: Hardening - Kernel 
       ansible.posix.sysctl:
