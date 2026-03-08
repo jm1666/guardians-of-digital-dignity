@@ -29,6 +29,9 @@ write_files:
       Suites: trixie
       Components: main
       Signed-By: /usr/share/keyrings/raspberrypi-archive-keyring.pgp
+  - path: /etc/chrony/sources.d/bootstrap-nts.sources
+    content: |
+      pool time.cloudflare.com iburst nts
 
 manage_resolv_conf: false
 keyboard:
@@ -46,11 +49,6 @@ rpi:
 packages:
   - git
   - chrony
-
-write_files:
-  - path: /etc/chrony/sources.d/bootstrap-nts.sources
-    content: |
-      pool time.cloudflare.com iburst nts
 
 runcmd:
   - sed -i 's/^pool [0-9].debian.pool.ntp.org iburst/# &/' /etc/chrony/chrony.conf
