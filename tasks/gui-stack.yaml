@@ -1,4 +1,4 @@
-- name: Install
+- name: gui-stack - Install
   ansible.builtin.apt:
     name:
       - xrdp
@@ -9,7 +9,7 @@
       - rpi-chromium-mods
     state: present
 
-- name: Configure XRDP to start Openbox
+- name: gui-stack - Configure XRDP to start Openbox
   ansible.builtin.copy:
     dest: /home/fortress/.xsession
     owner: fortress
@@ -17,20 +17,20 @@
     mode: '0644'
     content: "exec openbox-session"
 
-- name: Ensure Service is running
+- name: gui-stack - Ensure Service is running
   ansible.builtin.service:
-    name: xrdp
+    name: gui-stack - xrdp
     state: started
     enabled: yes
 
-- name: Create Openbox config directory
+- name: gui-stack - Create Openbox config directory
   ansible.builtin.file:
     path: /home/fortress/.config/openbox
     state: directory
     owner: fortress
     group: fortress
 
-- name: Configure Openbox Autostart (Launch tint2)
+- name: gui-stack - Configure Openbox Autostart (Launch tint2)
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/openbox-autostart"
     dest: /home/fortress/.config/openbox/autostart
