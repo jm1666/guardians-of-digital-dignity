@@ -1,10 +1,10 @@
-- name: Configure Socket - Create drop-in directory
+- name: dnscrypt-proxy - Configure Socket - Create drop-in directory
   ansible.builtin.file:
     path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
     state: directory
     mode: '0755'
 
-- name: Configure Socket
+- name: dnscrypt-proxy - Configure Socket
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/dnscrypt-proxy.socket-override.conf"
     dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
@@ -12,7 +12,7 @@
     group: root
     mode: '0644'
 
-- name: Ensure config directory exists
+- name: dnscrypt-proxy - Ensure config directory exists
   ansible.builtin.file:
     state: directory
     path: /etc/dnscrypt-proxy
@@ -20,7 +20,7 @@
     group: root
     mode: "0755"
 
-- name: Deploy config
+- name: dnscrypt-proxy - Deploy config
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/dnscrypt-proxy.toml"
     dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
@@ -28,14 +28,14 @@
     group: root
     mode: '0644'
 
-- name: Install
+- name: dnscrypt-proxy - Install
   ansible.builtin.apt:
-    name: dnscrypt-proxy
+    name: dnscrypt-proxy - dnscrypt-proxy
     state: present
     dpkg_options: 'force-confold,force-confdef'
 
-- name: Disable resolvconf takeover
+- name: dnscrypt-proxy - Disable resolvconf takeover
   ansible.builtin.service:
-    name: dnscrypt-proxy-resolvconf
+    name: dnscrypt-proxy - dnscrypt-proxy-resolvconf
     state: stopped
     enabled: false
