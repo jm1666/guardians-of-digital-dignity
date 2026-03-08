@@ -3,6 +3,7 @@ id=eth0
 type=ethernet
 interface-name=eth0
 autoconnect=true
+zone=trusted
 
 [ethernet]
 cloned-mac-address=random
