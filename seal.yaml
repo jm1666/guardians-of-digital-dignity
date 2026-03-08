@@ -18,6 +18,8 @@
         state: absent
       loop:
         - "/usr/local/bin/fortress-init.sh"
+        - "/etc/profile.d/fortress-nag.sh"
+        - "/var/lib/system-provisioned.flag"
 
     - name: Reload systemd
       ansible.builtin.systemd:
