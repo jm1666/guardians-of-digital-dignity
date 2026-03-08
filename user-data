@@ -34,26 +34,65 @@ write_files:
     content: |
       pool time.cloudflare.com iburst nts
 
+  - path: /etc/profile.d/fortress-nag.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      FLAG_FILE="/var/lib/fortress/provisioned.flag"
+      INIT_SCRIPT="/usr/local/bin/fortress-init.sh"
+
+      if [ ! -f "$FLAG_FILE" ]; then
+          echo -e "\n\e[1;31m!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\e[0m"
+          echo -e "\e[1;37;41m       WARNING: FORTRESS IS UNFINISHED!         \e[0m"
+          echo -e "\e[1;31m!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\e[0m"
+          echo -e "\n\e[1;33mThe scaffolding is still up and the decor is pants.\e[0m"
+          echo -e "To sort this shambles, run the manual bootstrap now:"
+          echo -e "\n\e[1;32m   sudo $INIT_SCRIPT \e[0m\n"
+          echo -e "\e[1;31m!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\e[0m\n"
+      fi
+
+  - path: /usr/local/bin/fortress-init.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+
+      FLAG_FILE="/var/lib/system-provisioned.flag"
+      
+      if [ -f "$FLAG_FILE" ]; then
+          echo "System Provisioned, Ignoring."
+          exit 0
+      fi
+      until ping -c 1 1.1.1.1; do sleep 5; done
+      
+      # 2. Fix the 'stale index' and get the tools
+      DEBIAN_FRONTEND=noninteractive apt update -y
+      DEBIAN_FRONTEND=noninteractive apt upgrade -y
+
+      apt install -y git chrony ansible
+
+      sed -i 's/^pool [0-9].debian.pool.ntp.org iburst/# &/' /etc/chrony/chrony.conf
+
+      systemctl restart chronyd
+      
+      ansible-pull -U "https://github.com/jm1666/guardians-of-digital-dignity.git" provision.yaml
+      
+      # 5. Drop the 'Mission Accomplished' flag
+      if [ $? -eq 0 ]; then
+          touch "$FLAG_FILE"
+          echo "System Provisioned. Flag planted."
+      else
+          echo "System Provisioned went pear-shaped."
+          exit 1
+      fi
+
 manage_resolv_conf: false
 keyboard:
   model: pc105
   layout: "us"
 enable_ssh: true
 ssh_pwauth: false
-package_update: true
 
 rpi:
   interfaces:
     serial: true
     i2c: true
-
-runcmd:
-  - until ping -c 1 1.1.1.1; do sleep 5; done
-  - DEBIAN_FRONTEND=noninteractive apt update -y
-  - DEBIAN_FRONTEND=noninteractive apt upgrade -y
-  - apt install -y git chrony ansible
-  - sed -i 's/^pool [0-9].debian.pool.ntp.org iburst/# &/' /etc/chrony/chrony.conf
-  - systemctl restart chronyd
-  - ansible-pull -U "https://github.com/jm1666/guardians-of-digital-dignity.git" provision.yaml
-
-
