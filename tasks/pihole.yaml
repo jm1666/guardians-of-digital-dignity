@@ -1,9 +1,9 @@
-- name: Create group
+- name: pihole - Create group
   ansible.builtin.group:
     name: pihole
     state: present
 
-- name: Create user
+- name: pihole - Create user
   ansible.builtin.user:
     name: pihole
     home: "/opt/pihole"
@@ -15,7 +15,7 @@
     remove: true
     force: true
 
-- name: Ensure config directory exists
+- name: pihole - Ensure config directory exists
   ansible.builtin.file:
     state: directory
     path: /etc/pihole
@@ -23,7 +23,7 @@
     group: pihole
     mode: "0775"
 
-- name: Deploy config
+- name: pihole - Deploy config
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/pihole.toml"
     dest: /etc/pihole/pihole.toml
@@ -31,22 +31,22 @@
     group: pihole
     mode: '0644'
 
-- name: Run installer
+- name: pihole - Run installer
   ansible.builtin.shell:
     cmd: curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
     creates: /etc/systemd/system/pihole-FTL.service
   register: pihole_install_result
 
-- name: Set Admin Password
+- name: pihole - Set Admin Password
   ansible.builtin.shell:
     cmd: "pihole setpassword {{ gen_pihole_pw }}"
 
-- name: Install SQLite3
+- name: pihole - Install SQLite3
   ansible.builtin.apt:
     name: sqlite3
     state: present
 
-- name: Add blocklists
+- name: pihole - Add blocklists
   ansible.builtin.shell:
     cmd: |
       sqlite3 /etc/pihole/gravity.db "INSERT OR IGNORE INTO adlist (address, enabled, comment) VALUES ('{{ item.url }}', 1, '{{ item.comment }}');"
@@ -61,11 +61,11 @@
     pause: 5
   register: adlist_added
 
-- name:  Update Gravity (Rebuild blocklist database)
+- name: pihole -  Update Gravity (Rebuild blocklist database)
   ansible.builtin.command: pihole -g
   when: adlist_added.changed
 
-- name: Intercept Port 53 (DNS Redirect)
+- name: pihole - Intercept Port 53 (DNS Redirect)
   ansible.posix.firewalld:
     zone: "{{ item.0 }}"
     permanent: true
@@ -81,7 +81,7 @@
     - ['nm-shared']
     - ['udp', 'tcp']
 
-- name: Check if resolv.conf is already locked
+- name: pihole - Check if resolv.conf is already locked
   ansible.builtin.shell:
     cmd: |
       lsattr /etc/resolv.conf
@@ -89,7 +89,7 @@
   changed_when: false
   failed_when: false
 
-- name: Reclaim and Lock DNS
+- name: pihole - Reclaim and Lock DNS
   when: "'i' not in resolv_attr.stdout"
   ansible.builtin.shell:
     cmd: |
