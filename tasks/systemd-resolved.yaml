@@ -1,0 +1,25 @@
+- name: Install
+  ansible.builtin.apt:
+    name: systemd-resolved
+    state: present
+
+- name: Ensure config directory exists
+  ansible.builtin.file:
+    state: directory
+    path: /etc/systemd/resolved.conf.d
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Neutralise stub listener
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/files/fortress-no-stub.conf"
+    dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Restart
+  ansible.builtin.service:
+    name: systemd-resolved
+    state: restarted
