@@ -5,19 +5,27 @@
   become: true
 
   tasks:
-    - name: Generate unique secrets
+    - name: Facts - Generate unique secrets
       ansible.builtin.set_fact:
         gen_wifi_psk: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') }}"
         gen_pihole_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=12') }}"
         gen_ssid: "Fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
         new_fortress_name: "fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_lowercase,digits length=6') }}"
 
-    - name: Unblock WiFi Radio
+    - name: Facts - Create Recovery File
+      ansible.builtin.template:
+        src: files/FORTRESS_RECOVERY.txt
+        dest: /home/fortress/FORTRESS_RECOVERY.txt
+        owner: fortress
+        group: fortress
+        mode: '0600'      
+
+    - name: Initiation - Unblock WiFi Radio
       ansible.builtin.shell:
         cmd: rfkill unblock wifi
       changed_when: false
 
-    - name: Persist RFKILL State (SystemD Override)
+    - name: Initiation - Persist RFKILL State (SystemD Override)
       ansible.builtin.shell:
         cmd: |
           for f in /var/lib/systemd/rfkill/*:wlan; do 
@@ -28,30 +36,30 @@
       register: rfkill_persist
       changed_when: "rfkill_persist.rc == 0"
 
-    - name: Ensure WiFi is enabled in NetworkManager
+    - name: Initiation - Ensure WiFi is enabled in NetworkManager
       ansible.builtin.shell:
         cmd: nmcli radio wifi on
       changed_when: false
 
-    - name: Set the system hostname
+    - name: Initiation - Set the system hostname
       ansible.builtin.hostname:
         name: "{{ new_fortress_name }}"
       register: hostname_changed
 
-    - name: Update /etc/hosts for the new hostname
+    - name: Initiation - Update /etc/hosts for the new hostname
       ansible.builtin.lineinfile:
         path: /etc/hosts
         regexp: '^127\.0\.1\.1'
         line: "127.0.1.1 {{ new_fortress_name }}"
         state: present
 
-    - name: Update SITREP with new identity
+    - name: Initiation - Update with new identity
       ansible.builtin.debug:
         msg: "Fortress has been renamed to {{ new_fortress_name }}. Reboot required for full effect."
       when: hostname_changed.changed
       notify: Reboot Required
 
-    - name: Enable I2C and DS3231 RTC
+    - name: Initiation - Enable I2C and DS3231 RTC
       ansible.builtin.lineinfile:
         path: /boot/firmware/config.txt
         line: "{{ item }}"
@@ -59,15 +67,37 @@
       loop:
         - "dtparam=i2c_arm=on"
         - "dtoverlay=i2c-rtc,ds3231"
-
-    - name: Configure PWM Fan
-      ansible.builtin.lineinfile:
-        path: /boot/firmware/config.txt
-        line: "dtoverlay=pwm-gpio-fan,fan_gpio=18,fan_temp0=45000,fan_temp0_hyst=5000"
-        state: present
       notify: Reboot Required
+      when: "'Raspberry Pi 5' not in ansible_facts['model']"
 
-    - name: Install basic dependencies
+    - name: Initiation - Configure PWM Fan (Argon40 Mini Fan)
+      ansible.builtin.blockinfile:
+        path: /boot/firmware/config.txt
+        marker: "# {mark} ANSIBLE MANAGED Argon40 FAN"
+        insertafter: EOF
+        state: present
+        block: |
+          dtoverlay=pwm-gpio-fan,fan_gpio=18,fan_temp0=45000,fan_temp0_hyst=5000
+      notify: Reboot Required
+      when: "'Raspberry Pi 5' not in ansible_facts['model']"
+
+    - name: Initiation - Configure PWM Fan Curve (RasPi 5)
+      ansible.builtin.blockinfile:
+        path: /boot/firmware/config.txt
+        marker: "# {mark} ANSIBLE MANAGED PI5 FAN CURVE"
+        insertafter: EOF
+        state: present
+        block: |
+          [pi5]
+          dtparam=fan_temp0=45000,fan_temp0_speed=75,fan_temp0_hyst=5000
+          dtparam=fan_temp1=55000,fan_temp1_speed=125,fan_temp1_hyst=5000
+          dtparam=fan_temp2=65000,fan_temp2_speed=175,fan_temp2_hyst=5000
+          dtparam=fan_temp3=75000,fan_temp3_speed=255,fan_temp3_hyst=5000
+          [all]
+      notify: Reboot Required
+      when: "'Raspberry Pi 5' in ansible_facts['model']"
+
+    - name: Initiation - Install basic dependencies
       ansible.builtin.apt:
         name:
           - curl
@@ -77,13 +107,13 @@
         state: present
         update_cache: yes
 
-    - name: Ensure FirewallD is started and enabled
+    - name: Initiation - Ensure FirewallD is started and enabled
       ansible.builtin.service:
         name: firewalld
         state: started
         enabled: yes
 
-    - name: Install Minimal GUI Stack
+    - name: Minimal GUI Stack - Install
       ansible.builtin.apt:
         name:
           - xrdp
@@ -94,7 +124,7 @@
           - rpi-chromium-mods
         state: present
 
-    - name: Configure XRDP to start Openbox
+    - name: Minimal GUI Stack - Configure XRDP to start Openbox
       ansible.builtin.copy:
         dest: /home/fortress/.xsession
         owner: fortress
@@ -102,20 +132,20 @@
         mode: '0644'
         content: "exec openbox-session"
 
-    - name: Ensure XRDP service is running
+    - name: Minimal GUI Stack - Ensure XRDP service is running
       ansible.builtin.service:
         name: xrdp
         state: started
         enabled: yes
     
-    - name: Create Openbox config directory
+    - name: Minimal GUI Stack - Create Openbox config directory
       ansible.builtin.file:
         path: /home/fortress/.config/openbox
         state: directory
         owner: fortress
         group: fortress
 
-    - name: Configure Openbox Autostart (Launch tint2)
+    - name: Minimal GUI Stack - Configure Openbox Autostart (Launch tint2)
       ansible.builtin.template:
         src: files/openbox-autostart
         dest: /home/fortress/.config/openbox/autostart
@@ -123,48 +153,53 @@
         group: fortress
         mode: '0755'
 
-    # 2. SAVE SECRETS TO RECOVERY FILE
-    - name: Create Recovery File
+    - name: NetworkManager - Deploy Config for Global Stealth Configuration
       ansible.builtin.template:
-        src: files/FORTRESS_RECOVERY.txt
-        dest: /home/fortress/FORTRESS_RECOVERY.txt
-        owner: fortress
-        group: fortress
-        mode: '0600'      
+        src: files/99-fortress-stealth.conf
+        dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
+        owner: root
+        group: root
+        mode: '0644'
 
-    - name: Initial Configuration for FirewallD
-      ansible.posix.firewalld:
-        interface: "{{ item.iface }}"
-        zone: "{{ item.zone }}"
-        state: enabled
-        permanent: true
-        immediate: true
-      loop:
-        - { iface: 'wlan1', zone: 'public' }
-        - { iface: 'eth0', zone: 'trusted' }
+    - name: NetworkManager - Deploy Config for wlan0
+      ansible.builtin.template:
+        src: files/Fortress-AP.nmconnection
+        dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
+        owner: root
+        group: root
+        mode: '0600'
+      register: nm_config_file
 
-    - name: Initial Configuration for FirewallD - Set Public Zone to DROP
+    - name: NetworkManager - Deploy Config for eth0
+      ansible.builtin.template:
+        src: files/Fortress-AP.nmconnection
+        dest: /etc/NetworkManager/system-connections/eth0.nmconnection
+        owner: root
+        group: root
+        mode: '0600'
+      register: nm_config_file
+
+    - name: NetworkManager - Restart NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
+
+    - name: NetworkManager - Force NetworkManager to learn new config
       ansible.builtin.shell: |
-        firewall-cmd --permanent --zone=public --set-target=DROP
-      notify: Reload FirewallD
-
-    - name: Close Public Zone Services
-      ansible.posix.firewalld:
-        zone: public
-        service: "{{ item }}"
-        permanent: true
-        state: disabled
-      loop: [ssh, dhcpv6-client]
-      notify: Reload FirewallD
-
-    - name: Configure TTL/HL Mangling
+        cmd: |
+          nmcli connection reload
+          nmcli connection up eth0
+          nmcli connection up Fortress-AP
+      when: nm_config_file.changed
+      
+    - name: Initial Configuration for FirewallD - Configure TTL/HL Mangling
       ansible.builtin.shell:
         cmd: |
           firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 65
           firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 65
       notify: Reload FirewallD
 
-    - name: Create Hotspot to Public Policy (Scout)
+    - name: Initial Configuration for FirewallD - Create Hotspot to Public Policy (Scout)
       ansible.builtin.shell: |
         cmd: |
           firewall-cmd --permanent --new-policy hotspotToPublic
@@ -175,7 +210,7 @@
           firewall-cmd --permanent --policy hotspotToPublic --add-masquerade
       notify: Reload FirewallD
 
-    - name: Create Hotspot to VPN Policy (Tailscale)
+    - name: Initial Configuration for FirewallD - Create Hotspot to VPN Policy (Tailscale)
       ansible.builtin.shell: |
         cmd: |
           firewall-cmd --permanent --new-policy hotspotToVPN
@@ -185,106 +220,8 @@
           firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
           firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
       notify: Reload FirewallD
-    
-    - name: Deploy NetworkManager Connection for Global Stealth Configuration
-      ansible.builtin.template:
-        src: files/99-fortress-stealth.conf
-        dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
-        owner: root
-        group: root
-        mode: '0644'
 
-    - name: Deploy NetworkManager Connection for wlan0 (Management)
-      ansible.builtin.template:
-        src: files/Fortress-AP.nmconnection
-        dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
-        owner: root
-        group: root
-        mode: '0600'
-      register: nm_config_file
-
-    - name: Restart NetworkManager
-      ansible.builtin.service:
-        name: NetworkManager
-        state: restarted
-
-    - name: Force NetworkManager to learn new config
-      ansible.builtin.shell: |
-        cmd: |
-          nmcli connection reload
-          nmcli connection up Fortress-AP
-      when: nm_config_file.changed
-    
-    - name: Configure Dnscrypt-Proxy Socket - Create drop-in directory
-      ansible.builtin.file:
-        path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
-        state: directory
-        mode: '0755'
-
-    - name: Configure Dnscrypt-Proxy Socket
-      ansible.builtin.template:
-        src: files/dnscrypt-proxy.socket-override.conf
-        dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
-        owner: root
-        group: root
-        mode: '0644'
-    
-    - name: Ensure Dnscrypt-Proxy config directory exists
-      ansible.builtin.file:
-        state: directory
-        path: /etc/dnscrypt-proxy
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: Configure Dnscrypt-Proxy
-      ansible.builtin.template:
-        src: files/dnscrypt-proxy.toml
-        dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
-        owner: root
-        group: root
-        mode: '0644'
-
-    - name: Install Dnscrypt-Proxy
-      ansible.builtin.apt:
-        name: dnscrypt-proxy
-        state: present
-        dpkg_options: 'force-confold,force-confdef'
-
-    - name: Disable Dnscrypt-Proxy resolvconf takeover
-      ansible.builtin.service:
-        name: dnscrypt-proxy-resolvconf
-        state: stopped
-        enabled: false
-      become: true
-
-    - name: Install systemd-resolved via Ansible
-      ansible.builtin.apt:
-        name: systemd-resolved
-        state: present
-
-    - name: Ensure systemd-resolved config directory exists
-      ansible.builtin.file:
-        state: directory
-        path: /etc/systemd/resolved.conf.d
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: Neutralise systemd-resolved stub listener
-      ansible.builtin.template:
-        src: files/fortress-no-stub.conf
-        dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
-        owner: root
-        group: root
-        mode: '0644'
-    
-    - name: Restart systemd-resolved
-      ansible.builtin.service:
-        name: systemd-resolved
-        state: restarted
-
-    - name: Configure FirewallD (wlan0 for user side)
+    - name: Initial Configuration for FirewallD - Zone Assignment
       ansible.posix.firewalld:
         interface: "{{ item.iface }}"
         zone: "{{ item.zone }}"
@@ -292,9 +229,26 @@
         permanent: true
         immediate: true
       loop:
+        - { iface: 'eth0', zone: 'trusted' }
+        - { iface: 'wlan1', zone: 'public' }
         - { iface: 'wlan0', zone: 'nm-shared' }
+      notify: Reload FirewallD
 
-    - name: Open Ports for Pi-hole
+    - name: Initial Configuration for FirewallD - Close Public Zone Services
+      ansible.posix.firewalld:
+        zone: public
+        service: "{{ item }}"
+        permanent: true
+        state: disabled
+      loop: [ssh, dhcpv6-client]
+      notify: Reload FirewallD
+
+    - name: Initial Configuration for FirewallD - Set Public Zone to DROP
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=public --set-target=DROP
+      notify: Reload FirewallD
+      
+    - name: Initial Configuration for FirewallD - Open Ports for Pi-hole
       ansible.posix.firewalld:
         zone: nm-shared
         service: "{{ item }}"
@@ -305,13 +259,81 @@
         - dns
         - dhcp
         - http
+    
+    - name: Dnscrypt-Proxy - Configure Socket - Create drop-in directory
+      ansible.builtin.file:
+        path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
+        state: directory
+        mode: '0755'
 
-    - name: Create pihole group
+    - name: Dnscrypt-Proxy - Configure Socket
+      ansible.builtin.template:
+        src: files/dnscrypt-proxy.socket-override.conf
+        dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Dnscrypt-Proxy - Ensure config directory exists
+      ansible.builtin.file:
+        state: directory
+        path: /etc/dnscrypt-proxy
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Dnscrypt-Proxy - Deploy config
+      ansible.builtin.template:
+        src: files/dnscrypt-proxy.toml
+        dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Dnscrypt-Proxy - Install
+      ansible.builtin.apt:
+        name: dnscrypt-proxy
+        state: present
+        dpkg_options: 'force-confold,force-confdef'
+
+    - name: Dnscrypt-Proxy - Disable resolvconf takeover
+      ansible.builtin.service:
+        name: dnscrypt-proxy-resolvconf
+        state: stopped
+        enabled: false
+
+    - name: systemd-resolved - Install
+      ansible.builtin.apt:
+        name: systemd-resolved
+        state: present
+
+    - name: systemd-resolved - Ensure config directory exists
+      ansible.builtin.file:
+        state: directory
+        path: /etc/systemd/resolved.conf.d
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: systemd-resolved - Neutralise stub listener
+      ansible.builtin.template:
+        src: files/fortress-no-stub.conf
+        dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: systemd-resolved - Restart
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: restarted
+
+    - name: pihole - Create group
       ansible.builtin.group:
         name: pihole
         state: present
     
-    - name: Create pihole user
+    - name: pihole - Create user
       ansible.builtin.user:
         name: pihole
         home: "/opt/pihole"
@@ -323,7 +345,7 @@
         remove: true
         force: true
 
-    - name: Ensure Pi-hole config directory exists
+    - name: pihole - Ensure config directory exists
       ansible.builtin.file:
         state: directory
         path: /etc/pihole
@@ -331,7 +353,7 @@
         group: pihole
         mode: "0775"
 
-    - name: Deploy Pi-hole Config
+    - name: pihole - Deploy config
       ansible.builtin.template:
         src: files/pihole.toml
         dest: /etc/pihole/pihole.toml
@@ -339,22 +361,22 @@
         group: pihole
         mode: '0644'
   
-    - name: Run Pi-hole unattended installer
+    - name: pihole - Run installer
       ansible.builtin.shell:
         cmd: curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
         creates: /etc/systemd/system/pihole-FTL.service
       register: pihole_install_result
 
-    - name: Set Pi-hole Admin Password
+    - name: pihole - Set Admin Password
       ansible.builtin.shell:
         cmd: "pihole setpassword {{ gen_pihole_pw }}"
 
-    - name: Install SQLite3
+    - name: pihole - Install SQLite3
       ansible.builtin.apt:
         name: sqlite3
         state: present
 
-    - name: Add blocklists to Pi-hole
+    - name: pihole - Add blocklists
       ansible.builtin.shell:
         cmd: |
           sqlite3 /etc/pihole/gravity.db "INSERT OR IGNORE INTO adlist (address, enabled, comment) VALUES ('{{ item.url }}', 1, '{{ item.comment }}');"
@@ -369,12 +391,11 @@
         pause: 5
       register: adlist_added
 
-    - name: Update Gravity (Rebuild blocklist database)
+    - name: pihole -  Update Gravity (Rebuild blocklist database)
       ansible.builtin.command: pihole -g
       when: adlist_added.changed
 
-    - name: Intercept Port 53 (DNS Redirect)
-      become: true
+    - name: pihole - Intercept Port 53 (DNS Redirect)
       ansible.posix.firewalld:
         zone: "{{ item.0 }}"
         permanent: true
@@ -390,7 +411,7 @@
         - ['nm-shared']
         - ['udp', 'tcp']
 
-    - name: Check if resolv.conf is already locked
+    - name: pihole - Check if resolv.conf is already locked
       ansible.builtin.shell:
         cmd: |
           lsattr /etc/resolv.conf
@@ -398,9 +419,8 @@
       changed_when: false
       failed_when: false
 
-    - name: Reclaim and Lock DNS
+    - name: pihole - Reclaim and Lock DNS
       when: "'i' not in resolv_attr.stdout"
-      become: true
       ansible.builtin.shell:
         cmd: |
           rm -f /etc/resolv.conf
@@ -408,19 +428,19 @@
           echo "options edns0 trust-ad" >> /etc/resolv.conf
           chattr +i /etc/resolv.conf
 
-    - name: Create keyring directory
+    - name: Tailscale - Create keyring directory
       ansible.builtin.file:
         path: /usr/share/keyrings
         state: directory
         mode: '0755'
 
-    - name: Add Tailscale GPG key
+    - name: Tailscale - Add GPG key
       ansible.builtin.get_url:
         url: "https://pkgs.tailscale.com/stable/debian/{{ ansible_distribution_release }}.noarmor.gpg"
         dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
         mode: '0644'
 
-    - name: Add Tailscale repository
+    - name: Tailscale - Add Repository
       ansible.builtin.deb822_repository:
         name: tailscale
         types: deb
@@ -430,19 +450,19 @@
         signed_by: /usr/share/keyrings/tailscale-archive-keyring.gpg
         state: present
 
-    - name: Install Tailscale package
+    - name: Tailscale - Install
       ansible.builtin.apt:
         name: tailscale
         state: present
         update_cache: true
 
-    - name: Ensure tailscaled service is enabled
+    - name: Tailscale - Ensure service is enabled
       ansible.builtin.systemd:
         name: tailscaled
         state: started
         enabled: true
     
-    - name: Configure FirewallD for Tailscale
+    - name: Tailscale - Configure FirewallD for Tailscale
       ansible.posix.firewalld:
         interface: "{{ item.iface }}"
         zone: "{{ item.zone }}"
@@ -451,7 +471,7 @@
       loop:
         - { iface: 'tailscale0', zone: 'work' }
 
-    - name: Apply Fortress Kernel Hardening
+    - name: Hardening - Kernel 
       ansible.posix.sysctl:
         name: "{{ item.name }}"
         value: "{{ item.value }}"
@@ -469,7 +489,7 @@
         - { name: 'net.ipv4.conf.all.rp_filter', value: '1' }
         - { name: 'net.ipv4.conf.default.rp_filter', value: '1' }
         
-    - name: Deploy System Report on Login
+    - name: Misc - Deploy System Report on Login
       ansible.builtin.template:
         src: files/z99-fortress-sitrep.sh
         dest: /etc/profile.d/z99-fortress-sitrep.sh
@@ -477,7 +497,7 @@
         group: root
         mode: '0644'
 
-    - name: Deploy fortress-mode toggle script
+    - name: Misc - Deploy fortress-mode toggle script
       ansible.builtin.template:
         src: files/fortress-toggle.sh
         dest: /usr/local/bin/fortress-toggle
@@ -485,18 +505,20 @@
         group: root
         mode: '0755'
 
-    - name: Configure journald to use RAM only
+    - name: Misc - Configure journald to use RAM only
       ansible.builtin.lineinfile:
         path: /etc/systemd/journald.conf
         regexp: '^#?Storage='
         line: 'Storage=volatile'
       notify: Restart journald
+      when: "'Raspberry Pi 5' not in ansible_facts['model']"
     
-    - name: Ensure /var/log/journal is removed (Force Volatile)
+    - name: Misc - Ensure /var/log/journal is removed (Force Volatile)
       ansible.builtin.file:
         path: /var/log/journal
         state: absent
       notify: Restart journald
+      when: "'Raspberry Pi 5' not in ansible_facts['model']"
 
   handlers:
     - name: Reload SystemD
