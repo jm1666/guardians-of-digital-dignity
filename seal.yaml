@@ -63,7 +63,7 @@
         content: "fortress ALL=(ALL:ALL) ALL"
         validate: '/usr/sbin/visudo -cf %s'
 
-    - name: Move eth0 from Trusted to Public (DROP) Zone
+    - name: Move eth0 from Trusted to Public Zone (Config)
       ansible.builtin.ini_file:
         path: "/etc/NetworkManager/system-connections/{{ item.conn }}.nmconnection"
         section: connection
@@ -75,6 +75,14 @@
         - { conn: 'eth0', zone: 'public' }
       notify: Reload NetworkManager
 
+    - name: Move eth0 from Trusted to Public Zone (FirewallD)
+      ansible.builtin.shell:
+        cmd: |
+          firewall-cmd --permanent --change-interface=eth0 --zone=public
+          firewall-cmd --reload
+      register: shred_result
+      failed_when: false
+      
     - name: Securely shred the traces
       ansible.builtin.shell:
         cmd: |
@@ -109,6 +117,7 @@
   handlers:
     - name: Reload NetworkManager
       ansible.builtin.shell: |
+        nmcli general reload
         nmcli connection reload
         nmcli connection up "{{ item.conn }}"
     - name: Restart SSH
