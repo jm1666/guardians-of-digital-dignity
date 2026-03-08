@@ -55,9 +55,13 @@ write_files:
     permissions: '0755'
     content: |
       #!/bin/bash
-
       FLAG_FILE="/var/lib/system-provisioned.flag"
-      
+
+      if [[ $EUID -ne 0 ]]; then
+         echo -e "\e[1;31m[!] ERROR: This script must be run with sudo.\e[0m" 
+         exit 1
+      fi
+
       if [ -f "$FLAG_FILE" ]; then
           echo "System Provisioned, Ignoring."
           exit 0
