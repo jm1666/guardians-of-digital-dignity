@@ -33,6 +33,5 @@
   ansible.builtin.shell: |
     cmd: |
       nmcli connection reload
-      nmcli connection up eth0
       nmcli connection up Fortress-AP
   when: nm_config_file.changed
