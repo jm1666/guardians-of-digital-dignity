@@ -27,30 +27,32 @@
 
     - name: Generate unique high-entropy sudo password
       ansible.builtin.set_fact:
-        new_sudo_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits,symbols length=20') }}"
+        new_sudo_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits,@#%^-_=+ length=20') }}"
+      no_log: true
 
     - name: Apply new password to fortress user
       ansible.builtin.user:
         name: fortress
         password: "{{ new_sudo_pw | password_hash('sha512') }}"
         update_password: always
+      no_log: true
 
     - name: Apply new password to current Ansible playbook
       ansible.builtin.set_fact:
-        ansible_become_password: "{{ new_sudo_pw }}"
+        ansible_become_pass: "{{ new_sudo_pw }}"
+      no_log: true
 
-    - name: Show new password to fortress user
-      ansible.builtin.debug:
-        msg: 
-          - "################################################"
-          - "FORTRESS SEALED. NEW SUDO PASSWORD FOR 'fortress':"
-          - "{{ new_sudo_pw }}"
-          - "################################################"
-          - "SUDO NOW REQUIRES THIS PASSWORD. SSH REMAINS KEY-ONLY."
-
-    - name: Confirm new password is saved
+    - name: User Acknowledgement - SAVE THIS PASSWORD
       ansible.builtin.pause:
-          prompt: "Have you got the password sorted? Press ENTER to disable Bypass Mode (Sudoers)..."
+        prompt: |
+          
+          ============================================================
+          NEW SUDO PASSWORD GENERATED:
+          {{ new_sudo_pw }}
+          ============================================================
+          
+          Save this password in your manager (KeepassXC, Bitwarden, etc.)
+          Press ENTER once you have backed it up to continue.
 
     - name: Remove NOPASSWD entry from cloud-init files
       ansible.builtin.file:
