@@ -100,6 +100,8 @@
           # Shred Bash and Root history
           shred -u /home/fortress/.bash_history
           shred -u /root/.bash_history
+          shred -u /boot/firmware/user-data
+          shred -u /boot/firmware/network-config
           
           # Clear current session history
           history -c
