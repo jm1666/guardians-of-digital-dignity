@@ -90,16 +90,21 @@
       register: shred_result
       failed_when: false
 
+    - name: Set the Fortress Mode Flag
+      ansible.builtin.copy:
+        dest: "/var/lib/fortress_mode"
+        content: |
+          LEAN
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Disable SSH Password Authentication
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?PasswordAuthentication'
         line: 'PasswordAuthentication no'
       notify: Restart SSH
-
-    - name: Set the Fortress Mode Flag
-      ansible.builtin.shell: |
-        echo LEAN > /var/lib/fortress_mode
           
   handlers:
     - name: Restart SSH

@@ -15,8 +15,13 @@
     mode: '0755'
 
 - name: Misc - Set the Fortress Mode Flag
-  ansible.builtin.shell: |
-    echo UNSECURED > /var/lib/fortress_mode
+  ansible.builtin.copy:
+    dest: "/var/lib/fortress_mode"
+    content: |
+      UNSECURED
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: Misc - Configure journald to use RAM only
   ansible.builtin.lineinfile:
