@@ -33,6 +33,7 @@ write_files:
   - path: /etc/chrony/sources.d/bootstrap-nts.sources
     content: |
       pool time.cloudflare.com iburst nts
+      pool nts.netnod.se iburst nts
 
   - path: /etc/profile.d/fortress-nag.sh
     permissions: '0755'
@@ -95,6 +96,7 @@ write_files:
       
       echo "Crew is in the tmux lounge. To peek at the decor: sudo tmux attach -t $SESSION_NAME"
 
+timezone: Etc/UTC
 manage_resolv_conf: false
 keyboard:
   model: pc105

@@ -55,23 +55,6 @@
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/misc.yaml"
   
   handlers:
-    - name: Reload SystemD
-      ansible.builtin.systemd:
-        daemon_reload: yes
-
-    - name: Reload FirewallD
-      ansible.builtin.command: firewall-cmd --reload
-
-    - name: Restart Pi-hole
-      ansible.builtin.service:
-        name: pihole-FTL
-        state: restarted
-
     - name: Reboot Required
       ansible.builtin.set_fact:
         needs_reboot: true
-        
-    - name: Restart journald
-      ansible.builtin.service:
-        name: systemd-journald
-        state: restarted

@@ -1,22 +1,21 @@
 - name: initiation - Unblock WiFi Radio
-  ansible.builtin.shell:
-    cmd: rfkill unblock wifi
+  ansible.builtin.shell: |
+    rfkill unblock wifi
   changed_when: false
 
 - name: initiation - Persist RFKILL State (SystemD Override)
-  ansible.builtin.shell:
-    cmd: |
-      for f in /var/lib/systemd/rfkill/*:wlan; do 
-        if [ -f "$f" ]; then
-          echo 0 > "$f"
-        fi
-      done
+  ansible.builtin.shell: |
+    for f in /var/lib/systemd/rfkill/*:wlan; do 
+      if [ -f "$f" ]; then
+        echo 0 > "$f"
+      fi
+    done
   register: rfkill_persist
   changed_when: "rfkill_persist.rc == 0"
 
 - name: initiation - Ensure WiFi is enabled in NetworkManager
-  ansible.builtin.shell:
-    cmd: nmcli radio wifi on
+  ansible.builtin.shell: |
+    nmcli radio wifi on
   changed_when: false
 
 - name: initiation - Set the system hostname

@@ -8,7 +8,7 @@
 
 - name: network-manager - Deploy Config for wlan0
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/files/Fortress-AP.nmconnection"
+    src: "{{ playbook_dir }}/files/Fortress-AP.j2"
     dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
     owner: root
     group: root
@@ -25,9 +25,9 @@
   register: nm_config_file
 
 - name: network-manager - Restart NetworkManager
-  ansible.builtin.service:
-    name: NetworkManager
-    state: restarted
+  include_tasks: "{{ playbook_dir }}tasks/utils/restart_service.yaml"
+  vars:
+    target_service: NetworkManager
 
 - name: network-manager - Force NetworkManager to learn new config
   ansible.builtin.shell: |

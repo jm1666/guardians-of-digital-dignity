@@ -69,46 +69,26 @@
         content: "fortress ALL=(ALL:ALL) ALL"
         validate: '/usr/sbin/visudo -cf %s'
 
-    - name: Move eth0 from Trusted to Public Zone (Config)
-      ansible.builtin.ini_file:
-        path: "/etc/NetworkManager/system-connections/{{ item.conn }}.nmconnection"
-        section: connection
-        option: zone
-        value: "{{ item.zone }}"
-        mode: '0600'
-        no_extra_spaces: true
-      loop:
-        - { conn: 'eth0', zone: 'public' }
-      notify: Reload NetworkManager
-
     - name: Move eth0 from Trusted to Public Zone (FirewallD)
-      ansible.builtin.shell:
-        cmd: |
-          firewall-cmd --permanent --change-interface=eth0 --zone=public
-          firewall-cmd --reload
-
-    - name: Reload NetworkManager
       ansible.builtin.shell: |
-        nmcli general reload
-        nmcli connection reload
-        nmcli connection up eth0
+        firewall-cmd --permanent --change-interface=eth0 --zone=public
+        firewall-cmd --reload
 
     - name: Securely shred the traces
-      ansible.builtin.shell:
-        cmd: |
-          # Shred the recovery file
-          [ -f /home/fortress/FORTRESS_RECOVERY.txt ] && shred -u /home/fortress/FORTRESS_RECOVERY.txt
-          
-          # Shred Bash and Root history
-          shred -u /home/fortress/.bash_history
-          shred -u /root/.bash_history
-          shred -u /boot/firmware/user-data
-          shred -u /boot/firmware/network-config
-          
-          # Clear current session history
-          history -c
+      ansible.builtin.shell: |
+        # Shred the recovery file
+        [ -f /home/fortress/FORTRESS_RECOVERY.txt ] && shred -u /home/fortress/FORTRESS_RECOVERY.txt
+        
+        # Shred Bash and Root history
+        shred -u /home/fortress/.bash_history
+        shred -u /root/.bash_history
+        shred -u /boot/firmware/user-data
+        shred -u /boot/firmware/network-config
+        
+        # Clear current session history
+        history -c
       register: shred_result
-      failed_when: false # Don't crash if it was already deleted
+      failed_when: false
 
     - name: Disable SSH Password Authentication
       ansible.builtin.lineinfile:
@@ -117,8 +97,12 @@
         line: 'PasswordAuthentication no'
       notify: Restart SSH
 
+    - name: Set the Fortress Mode Flag
+      ansible.builtin.shell: |
+        echo LEAN > /var/lib/fortress_mode
+          
   handlers:
     - name: Restart SSH
-      ansible.builtin.service:
-        name: ssh
-        state: restarted
+      include_tasks: "{{ playbook_dir }}tasks/utils/restart_service.yaml"
+      vars:
+        target_service: ssh

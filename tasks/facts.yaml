@@ -14,7 +14,7 @@
 
 - name: facts - Create Recovery File
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/files/FORTRESS_RECOVERY.txt"
+    src: "{{ playbook_dir }}/files/FORTRESS_RECOVERY.j2"
     dest: /home/fortress/FORTRESS_RECOVERY.txt
     owner: fortress
     group: fortress

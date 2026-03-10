@@ -1,0 +1,4 @@
+- name: "Force Restart: {{ target_service }}"
+  ansible.builtin.service:
+    name: "{{ target_service }}"
+    state: restarted

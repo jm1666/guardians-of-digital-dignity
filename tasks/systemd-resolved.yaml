@@ -20,6 +20,6 @@
     mode: '0644'
 
 - name: systemd-resolved - Restart
-  ansible.builtin.service:
-    name: systemd-resolved
-    state: restarted
+  include_tasks: "{{ playbook_dir }}tasks/utils/restart_service.yaml"
+  vars:
+    target_service: systemd-resolved

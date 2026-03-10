@@ -14,17 +14,25 @@
     group: root
     mode: '0755'
 
+- name: Misc - Set the Fortress Mode Flag
+  ansible.builtin.shell: |
+    echo UNSECURED > /var/lib/fortress_mode
+
 - name: Misc - Configure journald to use RAM only
   ansible.builtin.lineinfile:
     path: /etc/systemd/journald.conf
     regexp: '^#?Storage='
     line: 'Storage=volatile'
-  notify: Restart journald
   when: not is_pi5
 
 - name: Misc - Ensure /var/log/journal is removed (Force Volatile)
   ansible.builtin.file:
     path: /var/log/journal
     state: absent
-  notify: Restart journald
+  when: not is_pi5
+
+- name: Misc - Restart systemd-journald
+  include_tasks: "{{ playbook_dir }}tasks/utils/restart_service.yaml"
+  vars:
+    target_service: systemd-journald
   when: not is_pi5
