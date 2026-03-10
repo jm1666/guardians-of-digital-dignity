@@ -1,3 +1,15 @@
+- name: initiation - Install basic dependencies
+  ansible.builtin.apt:
+    name:
+      - curl
+      - gnupg
+      - firewalld
+      - python3-debian
+      - wireless-regdb
+      - iw
+    state: present
+    update_cache: yes
+
 - name: initiation - Unblock WiFi Radio
   ansible.builtin.shell: |
     rfkill unblock wifi
@@ -81,15 +93,3 @@
       dtparam=fan_temp3=75000,fan_temp3_speed=255,fan_temp3_hyst=5000
   notify: Reboot Required
   when: is_pi5
-
-- name: initiation - Install basic dependencies
-  ansible.builtin.apt:
-    name:
-      - curl
-      - gnupg
-      - firewalld
-      - python3-debian
-      - wireless-regdb
-      - iw
-    state: present
-    update_cache: yes
