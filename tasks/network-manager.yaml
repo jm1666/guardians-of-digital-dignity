@@ -25,7 +25,7 @@
   register: nm_config_file
 
 - name: network-manager - Restart NetworkManager
-  include_tasks: "{{ playbook_dir }}tasks/utils/restart_service.yaml"
+  include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
   vars:
     target_service: NetworkManager
 

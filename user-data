@@ -103,8 +103,3 @@ keyboard:
   layout: "us"
 enable_ssh: true
 ssh_pwauth: false
-
-rpi:
-  interfaces:
-    serial: true
-    i2c: true

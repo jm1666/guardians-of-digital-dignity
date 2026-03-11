@@ -20,6 +20,6 @@
     mode: '0644'
 
 - name: systemd-resolved - Restart
-  include_tasks: "{{ playbook_dir }}tasks/utils/restart_service.yaml"
+  include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
   vars:
     target_service: systemd-resolved
