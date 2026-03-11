@@ -37,7 +37,7 @@
   when: not is_pi5
 
 - name: Misc - Restart systemd-journald
-  include_tasks: "{{ playbook_dir }}tasks/utils/restart_service.yaml"
+  include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
   vars:
     target_service: systemd-journald
   when: not is_pi5
