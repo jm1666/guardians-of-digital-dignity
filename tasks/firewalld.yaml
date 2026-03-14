@@ -3,11 +3,15 @@
     name: firewalld
     state: started
     enabled: yes
-  
+
+- name: firewalld - Move eth0 from Public to Trusted Zone for facilitating setup
+  ansible.builtin.shell: |
+    firewall-cmd --permanent --change-interface=eth0 --zone=trusted
+
 - name: firewalld - Configure TTL/HL Mangling
   ansible.builtin.shell: |
-      firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 65
-      firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 65
+      firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 129
+      firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 129
 
 - name: firewalld - Create Hotspot to Public Policy (Scout)
   ansible.builtin.shell: |
@@ -36,8 +40,10 @@
   loop: [ssh, dhcpv6-client]
 
 - name: firewalld - Set Public Zone to DROP
-  ansible.builtin.shell: |
-    firewall-cmd --permanent --zone=public --set-target=DROP
+  ansible.posix.firewalld:
+    zone: public
+    target: "DROP"
+    permanent: true
   
 - name: firewalld - Open Ports for internal user
   ansible.posix.firewalld:

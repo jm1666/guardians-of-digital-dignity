@@ -1,3 +1,17 @@
+- name: network-manager - Ensure NetworkManager is started and enabled
+  ansible.builtin.service:
+    name: NetworkManager
+    state: started
+    enabled: yes
+
+- name: network-manager - Ensure config directory exists
+  ansible.builtin.file:
+    state: directory
+    path: /etc/NetworkManager/conf.d
+    owner: root
+    group: root
+    mode: "0755"
+  
 - name: network-manager - Deploy Config for Global Stealth Configuration
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/99-fortress-stealth.conf"
@@ -5,6 +19,18 @@
     owner: root
     group: root
     mode: '0644'
+  register: nm_config_file
+
+- name: network-manager - Deploy Config for Disabling Wi-Fi Power Saving
+  ansible.builtin.copy:
+    dest: /etc/NetworkManager/conf.d/default-wifi-powersave-off.conf
+    content: |
+      [connection]
+      wifi.powersave = 2
+    owner: root
+    group: root
+    mode: '0644'
+  register: nm_config_file
 
 - name: network-manager - Deploy Config for wlan0
   ansible.builtin.template:
@@ -28,6 +54,7 @@
   include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
   vars:
     target_service: NetworkManager
+  when: nm_config_file.changed
 
 - name: network-manager - Force NetworkManager to learn new config
   ansible.builtin.shell: |

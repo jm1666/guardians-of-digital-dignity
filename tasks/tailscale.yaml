@@ -34,12 +34,10 @@
 
 - name: tailscale - Configure FirewallD for Tailscale
   ansible.posix.firewalld:
-    interface: "{{ item.iface }}"
-    zone: "{{ item.zone }}"
+    interface: tailscale0
+    zone: work
     state: enabled
     permanent: true
-  loop:
-    - { iface: 'tailscale0', zone: 'work' }
 
 - name: tailscale - Open port for inter-host communication
   ansible.posix.firewalld:

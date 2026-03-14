@@ -12,9 +12,11 @@
     mode: "0755"
 
 - name: systemd-resolved - Neutralise stub listener
-  ansible.builtin.template:
-    src: "{{ playbook_dir }}/files/fortress-no-stub.conf"
+  ansible.builtin.copy:
     dest: /etc/systemd/resolved.conf.d/fortress-no-stub.conf
+    content: |
+      [Resolve]
+      DNSStubListener=no
     owner: root
     group: root
     mode: '0644'

@@ -76,9 +76,6 @@
 
     - name: Securely shred the traces
       ansible.builtin.shell: |
-        # Shred the recovery file
-        [ -f /home/fortress/FORTRESS_RECOVERY.txt ] && shred -u /home/fortress/FORTRESS_RECOVERY.txt
-        
         # Shred Bash and Root history
         shred -u /home/fortress/.bash_history
         shred -u /root/.bash_history

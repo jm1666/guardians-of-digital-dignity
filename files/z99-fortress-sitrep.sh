@@ -1,8 +1,6 @@
 #!/bin/bash
-# Only run for interactive shells
 [[ $- != *i* ]] && return
 
-# 1. THE RECOVERY WARNING
 if [ -f /home/fortress/FORTRESS_RECOVERY.txt ]; then
     echo -e "\n\e[1;31m[!] SECURITY ALERT: RECOVERY SECRETS DETECTED ON DISK\e[0m"
     echo -e "\e[33mSecure credentials and 'shred -u ~/FORTRESS_RECOVERY.txt' immediately.\e[0m"
@@ -10,7 +8,6 @@ fi
 
 MODE=$(cat /var/lib/fortress_mode 2>/dev/null || echo "UNKNOWN")
 
-# 2. THE SITREP (TACTICAL VIEW)
 echo -e "\n\e[1;34m--- [ FORTRESS SITREP ] ---\e[0m"
 echo -e "UPTIME:    $(uptime -p)"
 echo -e "TEMP:      $(vcgencmd measure_temp | cut -d= -f2)"

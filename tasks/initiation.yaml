@@ -68,6 +68,7 @@
       dtparam=i2c_arm=on
       dtoverlay=i2c-rtc,ds3231
   notify: Reboot Required
+  when: not is_pi5
 
 - name: initiation - Configure PWM Fan (Argon40 Mini Fan)
   ansible.builtin.blockinfile:

@@ -1,7 +1,6 @@
 - name: facts - Identify the hardware
   ansible.builtin.command: cat /proc/device-tree/model
   register: rpi_model_raw
-  # Don't show 'changed' in the logs every time
   changed_when: false
 
 - name: facts - Generate unique secrets

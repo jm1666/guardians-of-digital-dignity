@@ -12,10 +12,11 @@
 - name: gui-stack - Configure XRDP to start Openbox
   ansible.builtin.copy:
     dest: /home/fortress/.xsession
+    content: |
+      exec openbox-session
     owner: fortress
     group: fortress
     mode: '0644'
-    content: "exec openbox-session"
 
 - name: gui-stack - Ensure Service is running
   ansible.builtin.service:
@@ -31,9 +32,10 @@
     group: fortress
 
 - name: gui-stack - Configure Openbox Autostart (Launch tint2)
-  ansible.builtin.template:
-    src: "{{ playbook_dir }}/files/openbox-autostart"
+  ansible.builtin.copy:
     dest: /home/fortress/.config/openbox/autostart
+    content: |
+      tint2 &
     owner: fortress
     group: fortress
     mode: '0755'
