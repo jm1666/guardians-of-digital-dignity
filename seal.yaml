@@ -11,7 +11,7 @@
       changed_when: false
       failed_when: ts_status.rc != 0
       # If this fails, the playbook stops here to prevent a lockout.
-      
+
     - name: Remove the temporary bootstrapper and service file
       ansible.builtin.file:
         path: "{{ item }}"
@@ -28,29 +28,26 @@
     - name: Generate unique high-entropy sudo password
       ansible.builtin.set_fact:
         new_sudo_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits,@#%^-_=+ length=20') }}"
-      no_log: true
 
     - name: Apply new password to fortress user
       ansible.builtin.user:
         name: fortress
         password: "{{ new_sudo_pw | password_hash('sha512') }}"
         update_password: always
-      no_log: true
 
     - name: Apply new password to current Ansible playbook
       ansible.builtin.set_fact:
         ansible_become_pass: "{{ new_sudo_pw }}"
-      no_log: true
 
     - name: User Acknowledgement - SAVE THIS PASSWORD
       ansible.builtin.pause:
-        prompt: |
-          
+        prompt: |2
+
           ============================================================
           NEW SUDO PASSWORD GENERATED:
           {{ new_sudo_pw }}
           ============================================================
-          
+
           Save this password in your manager (KeepassXC, Bitwarden, etc.)
           Press ENTER once you have backed it up to continue.
 
@@ -65,27 +62,15 @@
     - name: Enable Standard Sudo (Password Required)
       ansible.builtin.copy:
         dest: /etc/sudoers.d/fortress-hardened
-        mode: '0440'
+        mode: "0440"
         content: "fortress ALL=(ALL:ALL) ALL"
-        validate: '/usr/sbin/visudo -cf %s'
+        validate: "/usr/sbin/visudo -cf %s"
 
-    - name: Move eth0 from Trusted to Public Zone (FirewallD)
+    - name: "Move interface from Trusted to Public Zone (FirewallD): {{ ansible_default_ipv4.interface }}"
       ansible.builtin.shell: |
-        firewall-cmd --permanent --change-interface=eth0 --zone=public
+        firewall-cmd --permanent --change-interface={{ ansible_default_ipv4.interface }} --zone=public
         firewall-cmd --reload
-
-    - name: Securely shred the traces
-      ansible.builtin.shell: |
-        # Shred Bash and Root history
-        shred -u /home/fortress/.bash_history
-        shred -u /root/.bash_history
-        shred -u /boot/firmware/user-data
-        shred -u /boot/firmware/network-config
-        
-        # Clear current session history
-        history -c
-      register: shred_result
-      failed_when: false
+      changed_when: false
 
     - name: Set the Fortress Mode Flag
       ansible.builtin.copy:
@@ -94,17 +79,17 @@
           LEAN
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Disable SSH Password Authentication
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
-        regexp: '^#?PasswordAuthentication'
-        line: 'PasswordAuthentication no'
+        regexp: "^#?PasswordAuthentication"
+        line: "PasswordAuthentication no"
       notify: Restart SSH
-          
+
   handlers:
     - name: Restart SSH
-      include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
       vars:
         target_service: ssh

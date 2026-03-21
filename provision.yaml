@@ -8,9 +8,14 @@
   tasks:
     - name: Facts
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/facts.yaml"
-      
-    - name: Initiation
-      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/initiation.yaml"
+
+    - name: Initiation (Debian)
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/initiation-debian.yaml"
+      when: ansible_os_family == 'Debian'
+
+    - name: Initiation (Enterprise Linux)
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/initiation-el.yaml"
+      when: ansible_os_family == 'RedHat'
 
     - name: Kernel Hardening
       ansible.posix.sysctl:
@@ -31,29 +36,34 @@
         - { name: 'net.ipv4.conf.default.rp_filter', value: '1' }
 
     - name: NetworkManager
-      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/network-manager.yaml"  
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/network-manager.yaml"
 
     - name: FirewallD
-      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/firewalld.yaml"  
-    
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/firewalld.yaml"
+
     - name: Dnscrypt-Proxy
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/dnscrypt-proxy.yaml"
-      
+
     - name: Pi-Hole
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/pihole.yaml"
 
     - name: systemd-resolved
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/systemd-resolved.yaml"
 
-    - name: Tailscale
-      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/tailscale.yaml"  
+    - name: Tailscale (Debian)
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/tailscale-debian.yaml"
+      when: ansible_os_family == 'Debian'
+
+    - name: Tailscale (Enterprise Linux)
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/tailscale-el.yaml"
+      when: ansible_os_family == 'RedHat'
 
     - name: Minimal GUI Stack
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/gui-stack.yaml"
 
     - name: Misc
       ansible.builtin.import_tasks: "{{ playbook_dir }}/tasks/misc.yaml"
-  
+
   handlers:
     - name: Reboot Required
       ansible.builtin.set_fact:

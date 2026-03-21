@@ -1,12 +1,12 @@
 - name: gui-stack - Install
-  ansible.builtin.apt:
+  ansible.builtin.package:
     name:
       - xrdp
       - xorgxrdp
       - openbox
-      - tint2
       - xterm
-      - rpi-chromium-mods
+      - lxpanel  # Now universal across Fedora, Debian, and EL (via EPEL)
+      - "{{ 'rpi-chromium-mods' if ansible_distribution == 'Debian' else [] }}"
     state: present
 
 - name: gui-stack - Configure XRDP to start Openbox
@@ -35,7 +35,7 @@
   ansible.builtin.copy:
     dest: /home/fortress/.config/openbox/autostart
     content: |
-      tint2 &
+      lxpanel &
     owner: fortress
     group: fortress
     mode: '0755'

@@ -4,9 +4,19 @@
     state: started
     enabled: yes
 
-- name: firewalld - Move eth0 from Public to Trusted Zone for facilitating setup
+- name: firewalld - Set firewalld default zone to public
   ansible.builtin.shell: |
-    firewall-cmd --permanent --change-interface=eth0 --zone=trusted
+    firewall-cmd --set-default-zone=public
+  register: zone_result
+  # Only report a "change" if the zone wasn't already set to home
+  changed_when: "'ZONE_ALREADY_SET' not in zone_result.stderr"
+  failed_when: 
+    - zone_result.rc != 0 
+    - "'ZONE_ALREADY_SET' not in zone_result.stderr"
+
+- name: firewalld - Move {{ ansible_default_ipv4.interface }}  from Public to Trusted Zone for facilitating setup
+  ansible.builtin.shell: |
+    firewall-cmd --permanent --change-interface={{ ansible_default_ipv4.interface }} --zone=trusted
 
 - name: firewalld - Configure TTL/HL Mangling
   ansible.builtin.shell: |
@@ -37,14 +47,15 @@
     service: "{{ item }}"
     permanent: true
     state: disabled
-  loop: [ssh, dhcpv6-client]
+  loop: [ssh, dhcpv6-client, mdns]
 
 - name: firewalld - Set Public Zone to DROP
   ansible.posix.firewalld:
     zone: public
     target: "DROP"
     permanent: true
-  
+    state: enabled
+
 - name: firewalld - Open Ports for internal user
   ansible.posix.firewalld:
     zone: nm-shared
@@ -57,6 +68,7 @@
     - dhcp
     - http
     - rdp
+    - cockpit
 
 - name: firewalld - Reload FirewallD
   ansible.builtin.command: |

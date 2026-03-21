@@ -3,6 +3,7 @@
     path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
     state: directory
     mode: '0755'
+  when: ansible_os_family == 'Debian'
 
 - name: dnscrypt-proxy - Configure Socket
   ansible.builtin.template:
@@ -11,6 +12,7 @@
     owner: root
     group: root
     mode: '0644'
+  when: ansible_os_family == 'Debian'
 
 - name: dnscrypt-proxy - Ensure config directory exists
   ansible.builtin.file:
@@ -22,20 +24,34 @@
 
 - name: dnscrypt-proxy - Deploy config
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/files/dnscrypt-proxy.toml"
-    dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+    src: "{{ playbook_dir }}/files/dnscrypt-proxy.toml.j2"
+    dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml.j2
     owner: root
     group: root
     mode: '0644'
 
-- name: dnscrypt-proxy - Install
+- name: dnscrypt-proxy - Install (Debian)
   ansible.builtin.apt:
     name: dnscrypt-proxy
     state: present
     dpkg_options: 'force-confold,force-confdef'
+  when: ansible_os_family == 'Debian'
+
+- name: dnscrypt-proxy - Install (Enterprise Linux)
+  ansible.builtin.dnf:
+    name: dnscrypt-proxy
+    state: present
+  when: ansible_os_family == 'RedHat'
 
 - name: dnscrypt-proxy - Disable resolvconf takeover
   ansible.builtin.service:
     name: dnscrypt-proxy-resolvconf
     state: stopped
     enabled: false
+  when: ansible_os_family == 'Debian'
+
+- name: dnscrypt-proxy - Ensure DNSCrypt Proxy is started and enabled
+  ansible.builtin.service:
+    name: dnscrypt-proxy
+    state: started
+    enabled: yes

@@ -41,10 +41,10 @@
     mode: '0600'
   register: nm_config_file
 
-- name: network-manager - Deploy Config for eth0
+- name: network-manager - Deploy Config for {{ ansible_default_ipv4.interface }}
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/files/eth0.nmconnection"
-    dest: /etc/NetworkManager/system-connections/eth0.nmconnection
+    src: "{{ playbook_dir }}/files/eth0.nmconnection.j2"
+    dest: "/etc/NetworkManager/system-connections/{{ ansible_default_ipv4.interface }}.nmconnection"
     owner: root
     group: root
     mode: '0600'
@@ -60,6 +60,6 @@
   ansible.builtin.shell: |
     cmd: |
       nmcli connection reload
-      nmcli connection up eth0
+      nmcli connection up {{ ansible_default_ipv4.interface }}
       nmcli connection up Fortress-AP
   when: nm_config_file.changed

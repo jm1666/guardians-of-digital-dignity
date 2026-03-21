@@ -1,0 +1,46 @@
+- name: tailscale-el - Handling distro mapping
+  ansible.builtin.set_fact:
+    ts_os: "{{ 'fedora' if ansible_distribution == 'Fedora' else 'rhel' }}"
+    ts_ver: "{{ ansible_distribution_major_version }}"
+    ts_arch: "{{ ansible_architecture }}"
+  when: >
+    (ansible_distribution == 'Fedora' and ansible_distribution_major_version | int <= 39) or
+    (ansible_os_family == 'RedHat' and ansible_distribution != 'Fedora')
+
+- name: tailscale-el - Add Tailscale repository
+  ansible.builtin.yum_repository:
+    name: tailscale-stable
+    description: Tailscale stable
+    baseurl: "https://pkgs.tailscale.com/stable/{{ ts_os }}/{{ ts_ver }}/{{ ts_arch }}/"
+    gpgkey: "https://pkgs.tailscale.com/stable/{{ ts_os }}/{{ ts_ver }}/repo.gpg"
+    gpgcheck: yes
+    enabled: yes
+  when: ts_os is defined
+
+- name: tailscale-el - Install
+  ansible.builtin.dnf:
+    name: tailscale
+    state: present
+    update_cache: true
+
+- name: tailscale-el - Ensure service is enabled
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: started
+    enabled: true
+
+- name: tailscale-el - Configure FirewallD for Tailscale
+  ansible.posix.firewalld:
+    interface: tailscale0
+    zone: work
+    state: enabled
+    permanent: true
+
+- name: tailscale-el - Open port for inter-host communication
+  ansible.posix.firewalld:
+    zone: nm-shared
+    permanent: true
+    immediate: true
+    state: enabled
+    port: 41641/udp
+

@@ -6,8 +6,8 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 MODE=$1
-ETH="eth0"
-WLAN_WAN="wlan1"
+ETH="{{ ansible_default_ipv4.interface }}"
+WLAN_WAN="{{ secondary_wifi_interface }}"
 EXIT_NODE=$2
 MODE_FILE="/var/lib/fortress_mode"
 
@@ -28,7 +28,7 @@ case $MODE in
     tailscale up --reset --accept-routes=true || exit 1
     firewall-cmd --reload
     echo "LEAN" > "$MODE_FILE"
-    echo -e "\e[1;32m[✓] Lean Mode: eth0/wlan1 are DROP. Forwarding REJECTED.\e[0m"
+    echo -e "\e[1;32m[✓] Lean Mode: $ETH/$WLAN_WAN are DROP. Forwarding REJECTED.\e[0m"
     ;;
 
   secure)

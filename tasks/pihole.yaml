@@ -1,3 +1,9 @@
+- name: pihole - get rid of DNSMasq
+  ansible.builtin.package:
+    name:
+      - dnsmasq
+    state: absent
+
 - name: pihole - Create group
   ansible.builtin.group:
     name: pihole
@@ -25,7 +31,7 @@
 
 - name: pihole - Deploy config
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/files/pihole.toml"
+    src: "{{ playbook_dir }}/files/pihole.toml.j2"
     dest: /etc/pihole/pihole.toml
     owner: pihole
     group: pihole
@@ -34,6 +40,9 @@
 - name: pihole - Run installer
   ansible.builtin.shell: |
     curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
+  environment:
+    PIHOLE_SKIP_OS_CHECK: "true"
+    PIHOLE_SELINUX: "true"
   args:
     creates: /etc/systemd/system/pihole-FTL.service
   register: pihole_install_result
@@ -43,8 +52,8 @@
     pihole setpassword {{ gen_pihole_pw }}
 
 - name: pihole - Install SQLite3
-  ansible.builtin.apt:
-    name: sqlite3
+  ansible.builtin.package:
+    name: "{{ 'sqlite' if ansible_os_family == 'RedHat' else 'sqlite3' }}"
     state: present
 
 - name: pihole - Add blocklists

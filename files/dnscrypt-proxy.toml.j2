@@ -1,5 +1,5 @@
 # Empty listen_addresses to use systemd socket activation
-listen_addresses = []
+listen_addresses = [{{ '"127.0.0.1#8053"' if ansible_os_family == "RedHat" else "" }}]
 server_names = ['cloudflare1112', 'cloudflare1002']
 
 ignore_system_dns = true

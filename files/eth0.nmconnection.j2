@@ -1,7 +1,7 @@
 [connection]
-id=eth0
+id={{ ansible_default_ipv4.interface }}
 type=ethernet
-interface-name=eth0
+interface-name={{ ansible_default_ipv4.interface }}
 autoconnect=true
 
 [ethernet]

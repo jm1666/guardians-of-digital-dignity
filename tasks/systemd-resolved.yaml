@@ -2,6 +2,7 @@
   ansible.builtin.apt:
     name: systemd-resolved
     state: present
+  when: ansible_os_family == 'Debian'
 
 - name: systemd-resolved - Ensure config directory exists
   ansible.builtin.file:
