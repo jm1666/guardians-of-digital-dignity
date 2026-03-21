@@ -6,7 +6,7 @@
       - openbox
       - xterm
       - lxpanel  # Now universal across Fedora, Debian, and EL (via EPEL)
-      - "{{ 'rpi-chromium-mods' if ansible_distribution == 'Debian' else [] }}"
+      - "{{ 'rpi-chromium-mods' if (ansible_distribution == 'Debian' and is_pi | bool) else 'chromium' }}"
     state: present
 
 - name: gui-stack - Configure XRDP to start Openbox

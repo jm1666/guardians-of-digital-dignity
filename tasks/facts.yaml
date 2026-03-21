@@ -10,6 +10,7 @@
     gen_ssid: "Fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') | upper }}"
     new_fortress_name: "fortress-{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_lowercase,digits length=6') }}"
     is_pi5: "{{ 'Raspberry Pi 5' in rpi_model_raw.stdout }}"
+    is_pi: "{{ 'Raspberry Pi' in rpi_model_raw.stdout }}"
 
 - name: facts - Create Recovery File
   ansible.builtin.template:
