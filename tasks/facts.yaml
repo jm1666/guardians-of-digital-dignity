@@ -1,9 +1,13 @@
-- name: facts - Identify the hardware
-  ansible.builtin.command: cat /proc/device-tree/model
+---
+- name: Facts - Identify the hardware
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/cat
+      - /proc/device-tree/model
   register: rpi_model_raw
   changed_when: false
 
-- name: facts - Generate unique secrets
+- name: Facts - Generate unique secrets
   ansible.builtin.set_fact:
     gen_wifi_psk: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=16') }}"
     gen_pihole_pw: "{{ lookup('ansible.builtin.password', '/dev/null chars=ascii_letters,digits length=12') }}"
@@ -12,34 +16,34 @@
     is_pi5: "{{ 'Raspberry Pi 5' in rpi_model_raw.stdout }}"
     is_pi: "{{ 'Raspberry Pi' in rpi_model_raw.stdout }}"
 
-- name: facts - Create Recovery File
+- name: Facts - Create Recovery File
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/FORTRESS_RECOVERY.j2"
     dest: /home/fortress/FORTRESS_RECOVERY.txt
     owner: fortress
     group: fortress
-    mode: '0600'
+    mode: "0600"
 
-- name: facts - Filter available interfaces
+- name: Facts - Filter available interfaces
   ansible.builtin.set_fact:
     # Exclude loopback and the primary default interface for a cleaner list
     available_interfaces: >-
-      {{ ansible_facts['interfaces'] | 
-          reject('equalto', 'lo') | 
-          reject('equalto', ansible_facts['default_ipv4']['interface'] | default('')) | 
+      {{ ansible_facts['interfaces'] |
+          reject('equalto', 'lo') |
+          reject('equalto', ansible_facts['default_ipv4']['interface'] | default('')) |
           list }}
 
-- name: facts - Prompt user to choose the secondary wifi interface
+- name: Facts - Prompt user to choose the secondary wifi interface
   ansible.builtin.pause:
     prompt: |
       Available interfaces: {{ available_interfaces | join(', ') }}
       Please enter the name of your secondary wifi interface
   register: user_selection
 
-- name: facts - Set selected interface as a fact
+- name: Facts - Set selected interface as a fact
   ansible.builtin.set_fact:
     secondary_wifi_interface: "{{ user_selection.user_input }}"
 
-- name: facts - Show the result
+- name: Facts - Show the result
   ansible.builtin.debug:
     msg: "You selected: {{ secondary_wifi_interface }}"

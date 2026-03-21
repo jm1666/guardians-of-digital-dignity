@@ -1,43 +1,44 @@
-- name: misc - Deploy System Report on Login
+---
+- name: Misc - Deploy System Report on Login
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/z99-fortress-sitrep.sh.j2"
     dest: /etc/profile.d/z99-fortress-sitrep.sh.j2
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
 
-- name: misc - Deploy fortress-mode toggle script
+- name: Misc - Deploy fortress-mode toggle script
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/fortress-toggle.sh.j2"
     dest: /usr/local/bin/fortress-toggle
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
 
-- name: misc - Set the Fortress Mode Flag
+- name: Misc - Set the Fortress Mode Flag
   ansible.builtin.copy:
     dest: "/var/lib/fortress_mode"
     content: |
       UNSECURED
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
 
-- name: misc - Configure journald to use RAM only
+- name: Misc - Configure journald to use RAM only
   ansible.builtin.lineinfile:
     path: /etc/systemd/journald.conf
-    regexp: '^#?Storage='
-    line: 'Storage=volatile'
+    regexp: "^#?Storage="
+    line: "Storage=volatile"
   when: ansible_os_family == 'Debian'
 
-- name: misc - Ensure /var/log/journal is removed (Force Volatile)
+- name: Misc - Ensure /var/log/journal is removed (Force Volatile)
   ansible.builtin.file:
     path: /var/log/journal
     state: absent
   when: ansible_os_family == 'Debian'
 
-- name: misc - Restart systemd-journald
-  include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
+- name: Misc - Restart systemd-journald
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
   vars:
     target_service: systemd-journald
   when: ansible_os_family == 'Debian'

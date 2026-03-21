@@ -1,45 +1,51 @@
+---
 - name: firewalld - Ensure FirewallD is started and enabled
   ansible.builtin.service:
     name: firewalld
     state: started
-    enabled: yes
+    enabled: true
 
 - name: firewalld - Set firewalld default zone to public
-  ansible.builtin.shell: |
-    firewall-cmd --set-default-zone=public
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/firewall-cmd
+      - --set-default-zone=public
   register: zone_result
-  # Only report a "change" if the zone wasn't already set to home
   changed_when: "'ZONE_ALREADY_SET' not in zone_result.stderr"
-  failed_when: 
-    - zone_result.rc != 0 
+  failed_when:
+    - zone_result.rc != 0
     - "'ZONE_ALREADY_SET' not in zone_result.stderr"
 
-- name: firewalld - Move {{ ansible_default_ipv4.interface }}  from Public to Trusted Zone for facilitating setup
+- name: "Firewalld - Move from Public to Trusted Zone to prevent lockup: {{ ansible_default_ipv4.interface }}"
   ansible.builtin.shell: |
-    firewall-cmd --permanent --change-interface={{ ansible_default_ipv4.interface }} --zone=trusted
+    /usr/bin/firewall-cmd --permanent --change-interface={{ ansible_default_ipv4.interface }} --zone=trusted
+  changed_when: false
 
 - name: firewalld - Configure TTL/HL Mangling
   ansible.builtin.shell: |
-      firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 129
-      firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 129
+    /usr/bin/firewall-cmd --permanent --direct --add-rule ipv4 mangle POSTROUTING 0 -j TTL --ttl-set 129
+    /usr/bin/firewall-cmd --permanent --direct --add-rule ipv6 mangle POSTROUTING 0 -j HL --hl-set 129
+  changed_when: false
 
 - name: firewalld - Create Hotspot to Public Policy (Scout)
   ansible.builtin.shell: |
-      firewall-cmd --permanent --new-policy hotspotToPublic
-      firewall-cmd --permanent --policy hotspotToPublic --add-ingress-zone nm-shared
-      firewall-cmd --permanent --policy hotspotToPublic --add-egress-zone public
-      firewall-cmd --permanent --policy hotspotToPublic --set-priority -1
-      firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
-      firewall-cmd --permanent --policy hotspotToPublic --add-masquerade
+    /usr/bin/firewall-cmd --permanent --new-policy hotspotToPub
+    /usr/bin/firewall-cmd --permanent --policy hotspotToPub --add-ingress-zone nm-shared
+    /usr/bin/firewall-cmd --permanent --policy hotspotToPub --add-egress-zone public
+    /usr/bin/firewall-cmd --permanent --policy hotspotToPub --set-priority -1
+    /usr/bin/firewall-cmd --permanent --policy hotspotToPub --set-target ACCEPT
+    /usr/bin/firewall-cmd --permanent --policy hotspotToPub --add-masquerade
+  changed_when: false
 
 - name: firewalld - Create Hotspot to VPN Policy (Tailscale)
   ansible.builtin.shell: |
-      firewall-cmd --permanent --new-policy hotspotToVPN
-      firewall-cmd --permanent --policy hotspotToVPN --add-ingress-zone nm-shared
-      firewall-cmd --permanent --policy hotspotToVPN --add-egress-zone work
-      firewall-cmd --permanent --policy hotspotToVPN --set-priority -10
-      firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
-      firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
+    /usr/bin/firewall-cmd --permanent --new-policy hotspotToVPN
+    /usr/bin/firewall-cmd --permanent --policy hotspotToVPN --add-ingress-zone nm-shared
+    /usr/bin/firewall-cmd --permanent --policy hotspotToVPN --add-egress-zone work
+    /usr/bin/firewall-cmd --permanent --policy hotspotToVPN --set-priority -10
+    /usr/bin/firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
+    /usr/bin/firewall-cmd --permanent --policy hotspotToVPN --add-masquerade
+  changed_when: false
 
 - name: firewalld - Close Public Zone Services
   ansible.posix.firewalld:
@@ -70,6 +76,9 @@
     - rdp
     - cockpit
 
-- name: firewalld - Reload FirewallD
-  ansible.builtin.command: |
-    firewall-cmd --reload
+- name: firewalld -Reload
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/firewall-cmd
+      - --reload
+  changed_when: false

@@ -5,8 +5,12 @@
   become: true
 
   tasks:
-    - name: Ensure Tailscale is active before locking eth0
-      ansible.builtin.command: tailscale status --peers=false
+    - name: Ensure Tailscale is active before locking {{ ansible_default_ipv4.interface }}
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - status
+          - --peers=false
       register: ts_status
       changed_when: false
       failed_when: ts_status.rc != 0
@@ -20,7 +24,6 @@
         - "/usr/local/bin/fortress-init.sh"
         - "/etc/profile.d/fortress-nag.sh"
         - "/var/lib/system-provisioned.flag"
-
     - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: true
@@ -67,9 +70,19 @@
         validate: "/usr/sbin/visudo -cf %s"
 
     - name: "Move interface from Trusted to Public Zone (FirewallD): {{ ansible_default_ipv4.interface }}"
-      ansible.builtin.shell: |
-        firewall-cmd --permanent --change-interface={{ ansible_default_ipv4.interface }} --zone=public
-        firewall-cmd --reload
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/firewall-cmd
+          - --permanent
+          - --change-interface={{ ansible_default_ipv4.interface | quote }}
+          - --zone=public
+      changed_when: false
+
+    - name: Reload FirewallD
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/firewall-cmd
+          - --reload
       changed_when: false
 
     - name: Set the Fortress Mode Flag

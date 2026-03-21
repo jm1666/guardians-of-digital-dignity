@@ -1,20 +1,21 @@
-- name: dnscrypt-proxy - Configure Socket - Create drop-in directory
+---
+- name: Dnscrypt-proxy - Configure Socket - Create drop-in directory
   ansible.builtin.file:
     path: "/etc/systemd/system/dnscrypt-proxy.socket.d"
     state: directory
-    mode: '0755'
+    mode: "0755"
   when: ansible_os_family == 'Debian'
 
-- name: dnscrypt-proxy - Configure Socket
+- name: Dnscrypt-proxy - Configure Socket
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/dnscrypt-proxy.socket-override.conf"
     dest: /etc/systemd/system/dnscrypt-proxy.socket.d/override.conf
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: ansible_os_family == 'Debian'
 
-- name: dnscrypt-proxy - Ensure config directory exists
+- name: Dnscrypt-proxy - Ensure config directory exists
   ansible.builtin.file:
     state: directory
     path: /etc/dnscrypt-proxy
@@ -22,36 +23,36 @@
     group: root
     mode: "0755"
 
-- name: dnscrypt-proxy - Deploy config
+- name: Dnscrypt-proxy - Deploy config
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/dnscrypt-proxy.toml.j2"
     dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml.j2
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
 
-- name: dnscrypt-proxy - Install (Debian)
+- name: Dnscrypt-proxy - Install (Debian)
   ansible.builtin.apt:
     name: dnscrypt-proxy
     state: present
-    dpkg_options: 'force-confold,force-confdef'
+    dpkg_options: "force-confold,force-confdef"
   when: ansible_os_family == 'Debian'
 
-- name: dnscrypt-proxy - Install (Enterprise Linux)
+- name: Dnscrypt-proxy - Install (Enterprise Linux)
   ansible.builtin.dnf:
     name: dnscrypt-proxy
     state: present
   when: ansible_os_family == 'RedHat'
 
-- name: dnscrypt-proxy - Disable resolvconf takeover
+- name: Dnscrypt-proxy - Disable resolvconf takeover
   ansible.builtin.service:
     name: dnscrypt-proxy-resolvconf
     state: stopped
     enabled: false
   when: ansible_os_family == 'Debian'
 
-- name: dnscrypt-proxy - Ensure DNSCrypt Proxy is started and enabled
+- name: Dnscrypt-proxy - Ensure DNSCrypt Proxy is started and enabled
   ansible.builtin.service:
     name: dnscrypt-proxy
     state: started
-    enabled: yes
+    enabled: true

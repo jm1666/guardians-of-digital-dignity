@@ -1,27 +1,28 @@
-- name: network-manager - Ensure NetworkManager is started and enabled
+---
+- name: Network-manager - Ensure NetworkManager is started and enabled
   ansible.builtin.service:
     name: NetworkManager
     state: started
-    enabled: yes
+    enabled: true
 
-- name: network-manager - Ensure config directory exists
+- name: Network-manager - Ensure config directory exists
   ansible.builtin.file:
     state: directory
     path: /etc/NetworkManager/conf.d
     owner: root
     group: root
     mode: "0755"
-  
-- name: network-manager - Deploy Config for Global Stealth Configuration
+
+- name: Network-manager - Deploy Config for Global Stealth Configuration
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/99-fortress-stealth.conf"
     dest: /etc/NetworkManager/conf.d/99-fortress-stealth.conf
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   register: nm_config_file
 
-- name: network-manager - Deploy Config for Disabling Wi-Fi Power Saving
+- name: Network-manager - Deploy Config for Disabling Wi-Fi Power Saving
   ansible.builtin.copy:
     dest: /etc/NetworkManager/conf.d/default-wifi-powersave-off.conf
     content: |
@@ -29,37 +30,36 @@
       wifi.powersave = 2
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   register: nm_config_file
 
-- name: network-manager - Deploy Config for wlan0
+- name: Network-manager - Deploy Config for wlan0
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/Fortress-AP.j2"
     dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   register: nm_config_file
 
-- name: network-manager - Deploy Config for {{ ansible_default_ipv4.interface }}
+- name: Network-manager - Deploy Config for {{ ansible_default_ipv4.interface }}
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/eth0.nmconnection.j2"
     dest: "/etc/NetworkManager/system-connections/{{ ansible_default_ipv4.interface }}.nmconnection"
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   register: nm_config_file
 
-- name: network-manager - Restart NetworkManager
-  include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
+- name: Network-manager - Restart NetworkManager
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/tasks/utils/restart_service.yaml"
   vars:
     target_service: NetworkManager
   when: nm_config_file.changed
 
-- name: network-manager - Force NetworkManager to learn new config
+- name: Network-manager - Force NetworkManager to learn new config
   ansible.builtin.shell: |
-    cmd: |
-      nmcli connection reload
-      nmcli connection up {{ ansible_default_ipv4.interface }}
-      nmcli connection up Fortress-AP
+    /usr/bin/nmcli connection reload
+    /usr/bin/nmcli connection up {{ ansible_default_ipv4.interface }}
+    /usr/bin/nmcli connection up Fortre ss-AP
   when: nm_config_file.changed

@@ -1,4 +1,5 @@
-- name: initiation-el - Install EPEL repository on RHEL-based systems
+---
+- name: Initiation-el - Install EPEL repository on RHEL-based systems
   ansible.builtin.dnf:
     name: epel-release
     state: present
@@ -6,7 +7,7 @@
     - ansible_os_family == 'RedHat'
     - ansible_distribution != 'Fedora'
 
-- name: initiation-el - Install basic dependencies (Fedora)
+- name: Initiation-el - Install basic dependencies (Fedora)
   ansible.builtin.dnf:
     name:
       - curl
@@ -15,15 +16,17 @@
       - wireless-regdb
       - iw
       - python3-passlib
+      - tmux
+      - chrony
     state: present
-    update_cache: yes
+    update_cache: true
 
-- name: initiation-el - Unblock WiFi Radio
+- name: Initiation-el - Unblock WiFi Radio
   ansible.builtin.shell: |
     rfkill unblock wifi
   changed_when: false
 
-- name: initiation-el - Persist RFKILL State (SystemD Override)
+- name: Initiation-el - Persist RFKILL State (SystemD Override)
   ansible.builtin.shell: |
     for f in /var/lib/systemd/rfkill/*:wlan; do
       if [ -f "$f" ]; then
@@ -33,30 +36,30 @@
   register: rfkill_persist
   changed_when: "rfkill_persist.rc == 0"
 
-- name: initiation-el - Ensure WiFi is enabled in NetworkManager
+- name: Initiation-el - Ensure WiFi is enabled in NetworkManager
   ansible.builtin.shell: |
-    nmcli radio wifi on
+    /usr/bin/nmcli radio wifi on
   changed_when: false
 
-- name: initiation-el - Set the system hostname
+- name: Initiation-el - Set the system hostname
   ansible.builtin.hostname:
     name: "{{ new_fortress_name }}"
   register: hostname_changed
 
-- name: initiation-el - Update /etc/hosts for the new hostname
+- name: Initiation-el - Update /etc/hosts for the new hostname
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    regexp: '^127\.0\.1\.1'
+    regexp: "^127\\.0\\.1\\.1"
     line: "127.0.1.1 {{ new_fortress_name }}"
     state: present
 
-- name: initiation-el - Update with new identity
+- name: Initiation-el - Update with new identity
   ansible.builtin.debug:
     msg: "Fortress has been renamed to {{ new_fortress_name }}. Reboot required for full effect."
   when: hostname_changed.changed
   notify: Reboot Required
 
-- name: initiation-el - Disable Bluetooth (Fedora)
+- name: Initiation-el - Disable Bluetooth (Fedora)
   ansible.builtin.blockinfile:
     path: /boot/efi/config.txt
     marker: "# {mark} ANSIBLE MANAGED Bluetooth"
@@ -66,7 +69,7 @@
       dtoverlay=disable-bt
   notify: Reboot Required
 
-- name: initiation-el - Enable I2C and DS3231 RTC
+- name: Initiation-el - Enable I2C and DS3231 RTC
   ansible.builtin.blockinfile:
     path: /boot/efi/config.txt
     marker: "# {mark} ANSIBLE MANAGED I2C DS3231"
@@ -78,7 +81,7 @@
   notify: Reboot Required
   when: not is_pi5
 
-- name: initiation-el - Configure PWM Fan (Argon40 Mini Fan)
+- name: Initiation-el - Configure PWM Fan (Argon40 Mini Fan)
   ansible.builtin.blockinfile:
     path: /boot/efi/config.txt
     marker: "# {mark} ANSIBLE MANAGED Argon40 FAN"
@@ -89,7 +92,7 @@
   notify: Reboot Required
   when: not is_pi5
 
-- name: initiation-el - Configure PWM Fan Curve (RasPi 5)
+- name: Initiation-el - Configure PWM Fan Curve (RasPi 5)
   ansible.builtin.blockinfile:
     path: /boot/efi/config.txt
     marker: "# {mark} ANSIBLE MANAGED PI5 FAN CURVE"

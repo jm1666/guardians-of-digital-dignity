@@ -1,41 +1,27 @@
-- name: gui-stack - Install
+---
+- name: Gui-stack - Install
   ansible.builtin.package:
     name:
       - xrdp
       - xorgxrdp
-      - openbox
+      - icewm
       - xterm
-      - lxpanel  # Now universal across Fedora, Debian, and EL (via EPEL)
       - "{{ 'rpi-chromium-mods' if (ansible_distribution == 'Debian' and is_pi | bool) else 'chromium' }}"
     state: present
 
-- name: gui-stack - Configure XRDP to start Openbox
+- name: Gui-stack - Configure XRDP to start IceWM
   ansible.builtin.copy:
     dest: /home/fortress/.xsession
     content: |
-      exec openbox-session
+      #! /bin/bash
+
+      exec /usr/bin/icewm-session
     owner: fortress
     group: fortress
-    mode: '0644'
+    mode: "0755"
 
-- name: gui-stack - Ensure Service is running
+- name: Gui-stack - Ensure Service is running
   ansible.builtin.service:
     name: xrdp
     state: started
-    enabled: yes
-
-- name: gui-stack - Create Openbox config directory
-  ansible.builtin.file:
-    path: /home/fortress/.config/openbox
-    state: directory
-    owner: fortress
-    group: fortress
-
-- name: gui-stack - Configure Openbox Autostart (Launch tint2)
-  ansible.builtin.copy:
-    dest: /home/fortress/.config/openbox/autostart
-    content: |
-      lxpanel &
-    owner: fortress
-    group: fortress
-    mode: '0755'
+    enabled: true

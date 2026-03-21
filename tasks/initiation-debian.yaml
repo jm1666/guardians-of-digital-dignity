@@ -1,4 +1,5 @@
-- name: initiation-debian - Install basic dependencies
+---
+- name: Initiation-debian - Install basic dependencies
   ansible.builtin.apt:
     name:
       - curl
@@ -7,17 +8,19 @@
       - python3-debian
       - wireless-regdb
       - iw
+      - tmux
+      - chrony
     state: present
-    update_cache: yes
+    update_cache: true
 
-- name: initiation-debian - Unblock WiFi Radio
+- name: Initiation-debian - Unblock WiFi Radio
   ansible.builtin.shell: |
     rfkill unblock wifi
   changed_when: false
 
-- name: initiation-debian - Persist RFKILL State (SystemD Override)
+- name: Initiation-debian - Persist RFKILL State (SystemD Override)
   ansible.builtin.shell: |
-    for f in /var/lib/systemd/rfkill/*:wlan; do 
+    for f in /var/lib/systemd/rfkill/*:wlan; do
       if [ -f "$f" ]; then
         echo 0 > "$f"
       fi
@@ -25,30 +28,30 @@
   register: rfkill_persist
   changed_when: "rfkill_persist.rc == 0"
 
-- name: initiation-debian - Ensure WiFi is enabled in NetworkManager
+- name: Initiation-debian - Ensure WiFi is enabled in NetworkManager
   ansible.builtin.shell: |
-    nmcli radio wifi on
+    /usr/bin/nmcli radio wifi on
   changed_when: false
 
-- name: initiation-debian - Set the system hostname
+- name: Initiation-debian - Set the system hostname
   ansible.builtin.hostname:
     name: "{{ new_fortress_name }}"
   register: hostname_changed
 
-- name: initiation-debian - Update /etc/hosts for the new hostname
+- name: Initiation-debian - Update /etc/hosts for the new hostname
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    regexp: '^127\.0\.1\.1'
+    regexp: "^127\\.0\\.1\\.1"
     line: "127.0.1.1 {{ new_fortress_name }}"
     state: present
 
-- name: initiation-debian - Update with new identity
+- name: Initiation-debian - Update with new identity
   ansible.builtin.debug:
     msg: "Fortress has been renamed to {{ new_fortress_name }}. Reboot required for full effect."
   when: hostname_changed.changed
   notify: Reboot Required
 
-- name: initiation-debian - Disable Bluetooth
+- name: Initiation-debian - Disable Bluetooth
   ansible.builtin.blockinfile:
     path: /boot/firmware/config.txt
     marker: "# {mark} ANSIBLE MANAGED Bluetooth"
@@ -58,7 +61,7 @@
       dtoverlay=disable-bt
   notify: Reboot Required
 
-- name: initiation-debian - Enable I2C and DS3231 RTC
+- name: Initiation-debian - Enable I2C and DS3231 RTC
   ansible.builtin.blockinfile:
     path: /boot/firmware/config.txt
     marker: "# {mark} ANSIBLE MANAGED I2C DS3231"
@@ -70,7 +73,7 @@
   notify: Reboot Required
   when: not is_pi5
 
-- name: initiation-debian - Configure PWM Fan (Argon40 Mini Fan)
+- name: Initiation-debian - Configure PWM Fan (Argon40 Mini Fan)
   ansible.builtin.blockinfile:
     path: /boot/firmware/config.txt
     marker: "# {mark} ANSIBLE MANAGED Argon40 FAN"
@@ -81,7 +84,7 @@
   notify: Reboot Required
   when: not is_pi5
 
-- name: initiation-debian - Configure PWM Fan Curve (RasPi 5)
+- name: Initiation-debian - Configure PWM Fan Curve (RasPi 5)
   ansible.builtin.blockinfile:
     path: /boot/firmware/config.txt
     marker: "# {mark} ANSIBLE MANAGED PI5 FAN CURVE"
