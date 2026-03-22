@@ -2,7 +2,7 @@
 - name: Misc - Deploy System Report on Login
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/z99-fortress-sitrep.sh.j2"
-    dest: /etc/profile.d/z99-fortress-sitrep.sh.j2
+    dest: /etc/profile.d/z99-fortress-sitrep.sh
     owner: root
     group: root
     mode: "0644"

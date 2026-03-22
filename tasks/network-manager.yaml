@@ -35,7 +35,7 @@
 
 - name: Network-manager - Deploy Config for wlan0
   ansible.builtin.template:
-    src: "{{ playbook_dir }}/files/Fortress-AP.j2"
+    src: "{{ playbook_dir }}/files/Fortress-AP.nmconnection.j2"
     dest: /etc/NetworkManager/system-connections/Fortress-AP.nmconnection
     owner: root
     group: root

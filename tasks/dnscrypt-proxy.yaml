@@ -26,7 +26,7 @@
 - name: Dnscrypt-proxy - Deploy config
   ansible.builtin.template:
     src: "{{ playbook_dir }}/files/dnscrypt-proxy.toml.j2"
-    dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml.j2
+    dest: /etc/dnscrypt-proxy/dnscrypt-proxy.toml
     owner: root
     group: root
     mode: "0644"
