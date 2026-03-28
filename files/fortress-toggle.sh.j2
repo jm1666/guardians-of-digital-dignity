@@ -23,7 +23,7 @@ case $MODE in
     echo -e "\e[1;33m[|] Switching to LEAN MODE (Scout/DNS Only)...\e[0m"
     /usr/bin/firewall-cmd --permanent --zone=public --change-interface=$ETH
     /usr/bin/firewall-cmd --permanent --zone=public --change-interface=$WLAN_WAN
-    /usr/bin/firewall-cmd --permanent --policy hotspotToPublic --set-target ACCEPT
+    /usr/bin/firewall-cmd --permanent --policy hotspotToPub --set-target ACCEPT
     /usr/bin/firewall-cmd --permanent --policy hotspotToVPN --set-target REJECT
     tailscale up --reset --accept-routes=true || exit 1
     /usr/bin/firewall-cmd --reload
@@ -35,7 +35,7 @@ case $MODE in
     echo -e "\e[1;31m[!] Switching to SECURE MODE (VPN)...\e[0m"
     /usr/bin/firewall-cmd --permanent --zone=public --change-interface=$ETH
     /usr/bin/firewall-cmd --permanent --zone=public --change-interface=$WLAN_WAN
-    /usr/bin/firewall-cmd --permanent --policy hotspotToPublic --set-target REJECT
+    /usr/bin/firewall-cmd --permanent --policy hotspotToPub --set-target REJECT
     /usr/bin/firewall-cmd --permanent --policy hotspotToVPN --set-target ACCEPT
     tailscale up --reset --exit-node=$2 --exit-node-allow-lan-access=true --accept-routes=true || exit 1
     /usr/bin/firewall-cmd --reload

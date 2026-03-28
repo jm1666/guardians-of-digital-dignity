@@ -85,14 +85,12 @@
           - --reload
       changed_when: false
 
-    - name: Set the Fortress Mode Flag
-      ansible.builtin.copy:
-        dest: "/var/lib/fortress_mode"
-        content: |
-          LEAN
-        owner: root
-        group: root
-        mode: "0644"
+    - name: Set the Fortress Mode to Lean
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/fortress-toggle
+          - lean
+      changed_when: false 
 
     - name: Disable SSH Password Authentication
       ansible.builtin.lineinfile:
