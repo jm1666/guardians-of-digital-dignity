@@ -44,7 +44,7 @@
 
     - name: User Acknowledgement - SAVE THIS PASSWORD
       ansible.builtin.pause:
-        prompt: |2
+        prompt: |
 
           ============================================================
           NEW SUDO PASSWORD GENERATED:
