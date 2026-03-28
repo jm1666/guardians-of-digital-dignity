@@ -61,5 +61,5 @@
   ansible.builtin.shell: |
     /usr/bin/nmcli connection reload
     /usr/bin/nmcli connection up {{ ansible_default_ipv4.interface }}
-    /usr/bin/nmcli connection up Fortre ss-AP
+    /usr/bin/nmcli connection up Fortress-AP
   when: nm_config_file.changed
